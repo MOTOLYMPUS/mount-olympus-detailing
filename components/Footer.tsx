@@ -4,7 +4,7 @@ export default function Footer() {
       <div className="mx-auto flex max-w-[1400px] flex-col gap-10 px-6 lg:flex-row lg:items-start lg:justify-between lg:px-10">
         <div>
           <p className="font-display text-lg font-bold tracking-tightest">
-            APEX <span className="text-apex">/</span> ATELIER
+            MOUNT OLYMPUS <span className="text-apex">/</span> DETAILING
           </p>
           <p className="mt-3 max-w-xs text-sm leading-relaxed text-smoke/50">
             Luxury paint correction, ceramic coating, and paint protection film for the world&rsquo;s
@@ -24,8 +24,8 @@ export default function Footer() {
           <div>
             <p className="eyebrow mb-4">Contact</p>
             <ul className="flex flex-col gap-2.5 text-sm text-smoke/60">
-              <li>hello@apexatelier.com</li>
-              <li>(555) 019-2244</li>
+              <li>luis.rodriguez621@outlook.com</li>
+              <li>(469) 390-1255</li>
               <li>By appointment only</li>
             </ul>
           </div>
@@ -42,7 +42,7 @@ export default function Footer() {
       <div className="mx-auto mt-12 max-w-[1400px] px-6 lg:px-10">
         <div className="hairline" />
         <p className="mt-6 font-mono text-[11px] uppercase tracking-widest2 text-smoke/40">
-          © {new Date().getFullYear()} Apex Detailing Atelier. All rights reserved.
+          © {new Date().getFullYear()} Mount Olympus Detailing. All rights reserved.
         </p>
       </div>
     </footer>

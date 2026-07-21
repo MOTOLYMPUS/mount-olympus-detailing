@@ -19,7 +19,7 @@ export default function Hero({ onOpenBooking }: Props) {
           className="h-full w-full bg-cover bg-center"
           style={{
             backgroundImage:
-              "url('https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=2400&auto=format&fit=crop')",
+              "url('https://images.unsplash.com/photo-1601937222273-e318eb01b3ca?q=80&w=2400&auto=format&fit=crop')",
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-obsidian/30 to-obsidian/70" />

@@ -24,7 +24,7 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Apex Detailing Atelier — Luxury Paint Correction, Ceramic Coating & PPF',
+  title: 'Mount Olympus Detailing — Luxury Paint Correction, Ceramic Coating & PPF',
   description:
     'Certified paint correction, ceramic coating, and paint protection film for Ferrari, Porsche, Lamborghini, McLaren, and the world\'s finest performance vehicles. Instant estimates, real-time booking.',
   keywords: [
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     'exotic car detailing',
   ],
   openGraph: {
-    title: 'Apex Detailing Atelier',
+    title: 'Mount Olympus Detailing',
     description: 'Perfection, Preserved. Luxury detailing for vehicles that deserve nothing less.',
     type: 'website',
   },

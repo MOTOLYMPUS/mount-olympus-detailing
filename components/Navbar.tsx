@@ -31,7 +31,7 @@ export default function Navbar({ onBookNow }: { onBookNow: () => void }) {
     >
       <nav className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-5 lg:px-10">
         <a href="#top" className="font-display text-lg font-bold tracking-tightest">
-          APEX <span className="text-apex">/</span> ATELIER
+          MOUNT OLYMPUS <span className="text-apex">/</span> DETAILING
         </a>
 
         <ul className="hidden items-center gap-9 lg:flex">

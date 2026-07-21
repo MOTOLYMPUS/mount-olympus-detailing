@@ -34,7 +34,7 @@ export default function WhyChooseUs() {
     <section id="about" className="border-t border-white/10 bg-charcoal/40 py-28">
       <div className="mx-auto max-w-[1400px] px-6 lg:px-10">
         <div className="mb-14 max-w-xl">
-          <p className="eyebrow mb-4">Why Apex</p>
+          <p className="eyebrow mb-4">Why Mount Olympus</p>
           <h2 className="font-display text-4xl font-bold tracking-tightest sm:text-5xl">
             Craftsmanship, not shortcuts.
           </h2>
