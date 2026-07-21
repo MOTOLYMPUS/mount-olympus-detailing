@@ -1,17 +1,18 @@
 'use client';
 
-import { BookingState } from '@/lib/types';
-import { services } from '@/data/services';
+import { BookingState, Package } from '@/lib/types';
 import { formatCurrency } from '@/lib/pricing';
 
 export default function StepConfirmation({
   booking,
+  packages,
   onClose,
 }: {
   booking: BookingState;
+  packages: Package[];
   onClose: () => void;
 }) {
-  const chosen = services.filter((s) => booking.selectedServices.includes(s.id));
+  const chosen = packages.filter((p) => booking.selectedPackages.includes(p.id));
 
   return (
     <div className="text-center">

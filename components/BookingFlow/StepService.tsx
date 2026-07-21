@@ -1,37 +1,51 @@
 'use client';
 
-import { services } from '@/data/services';
-import { ServiceId } from '@/lib/types';
-import { formatCurrency } from '@/lib/pricing';
+import { Package } from '@/lib/types';
+import { priceForTier, addOnPriceForTier, formatCurrency } from '@/lib/pricing';
 
 interface Props {
-  selected: ServiceId[];
-  onToggle: (id: ServiceId) => void;
+  packages: Package[];
+  tier: string;
+  selected: string[];
+  addOns: string[];
+  onTogglePackage: (id: string) => void;
+  onToggleAddOn: (id: string) => void;
   onNext: () => void;
   onBack: () => void;
 }
 
-export default function StepService({ selected, onToggle, onNext, onBack }: Props) {
+export default function StepService({
+  packages,
+  tier,
+  selected,
+  addOns,
+  onTogglePackage,
+  onToggleAddOn,
+  onNext,
+  onBack,
+}: Props) {
+  const availableAddOns = packages.filter((p) => selected.includes(p.id)).flatMap((p) => p.addOns ?? []);
+
   return (
     <div>
       <h3 className="font-display text-2xl font-bold">Choose your services</h3>
       <p className="mt-2 text-sm text-smoke/50">Select one or more — your estimate updates instantly.</p>
 
       <div className="mt-8 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        {services.map((svc) => {
-          const active = selected.includes(svc.id);
+        {packages.map((pkg) => {
+          const active = selected.includes(pkg.id);
           return (
             <button
-              key={svc.id}
-              onClick={() => onToggle(svc.id)}
+              key={pkg.id}
+              onClick={() => onTogglePackage(pkg.id)}
               className={`flex items-center justify-between gap-3 rounded-sm border px-4 py-3.5 text-left transition-all duration-200 ${
                 active ? 'border-apex/60 bg-apex/5' : 'border-white/12 hover:border-white/30'
               }`}
             >
               <div>
-                <p className="text-sm text-white/90">{svc.name}</p>
+                <p className="text-sm text-white/90">{pkg.name}</p>
                 <p className="font-mono text-[11px] text-smoke/40">
-                  From {formatCurrency(svc.startingPrice)}
+                  {formatCurrency(priceForTier(pkg, tier))}
                 </p>
               </div>
               <span
@@ -49,6 +63,28 @@ export default function StepService({ selected, onToggle, onNext, onBack }: Prop
           );
         })}
       </div>
+
+      {availableAddOns.length > 0 && (
+        <>
+          <p className="eyebrow mb-3 mt-8">Add-ons</p>
+          <div className="flex flex-wrap gap-2.5">
+            {availableAddOns.map((addOn) => {
+              const active = addOns.includes(addOn.id);
+              return (
+                <button
+                  key={addOn.id}
+                  onClick={() => onToggleAddOn(addOn.id)}
+                  className={`rounded-sm border px-4 py-2 font-mono text-[11px] uppercase tracking-widest2 transition-colors duration-200 ${
+                    active ? 'border-apex bg-apex/10 text-white' : 'border-white/15 text-smoke/50'
+                  }`}
+                >
+                  {addOn.name} · {formatCurrency(addOnPriceForTier(addOn.pricing, tier))}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       <div className="mt-8 flex gap-3">
         <button onClick={onBack} className="btn-ghost">
