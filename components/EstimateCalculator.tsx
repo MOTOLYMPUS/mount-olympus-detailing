@@ -1,122 +1,197 @@
 'use client';
 
-import { useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ServiceId, VehicleSize } from '@/lib/types';
-import { services } from '@/data/services';
-import { calculateEstimate, formatCurrency, SIZE_LABEL } from '@/lib/pricing';
+import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import { useIndustry } from './IndustryProvider';
+import { ChoiceCard } from './Field';
+import {
+  availableAddOns,
+  availableServices,
+  calculateEstimate,
+  formatHours,
+  formatPrice,
+} from '@/lib/pricing';
+import { SizeClass } from '@/lib/types';
+import { usePrefersReducedMotion } from '@/lib/useDialog';
 
-const SIZES: VehicleSize[] = ['sedan', 'coupe', 'suv', 'truck', 'exotic'];
+interface Props {
+  /**
+   * Carries the FULL selection into the wizard. The previous build passed only
+   * `services[0]` and dropped the vehicle size entirely, so the price the
+   * customer agreed to was not the price they saw next.
+   */
+  onRequest: (payload: {
+    sizeClass: SizeClass;
+    serviceIds: string[];
+    addOnIds: string[];
+  }) => void;
+}
 
-export default function EstimateCalculator({
-  onBook,
-}: {
-  onBook: (services: ServiceId[], size: VehicleSize) => void;
-}) {
-  const [size, setSize] = useState<VehicleSize>('coupe');
-  const [selected, setSelected] = useState<ServiceId[]>(['ceramic-coating']);
+export default function EstimateCalculator({ onRequest }: Props) {
+  const { industry, config } = useIndustry();
+  const reduced = usePrefersReducedMotion();
 
-  const estimate = useMemo(() => calculateEstimate(size, selected), [size, selected]);
+  const [size, setSize] = useState<SizeClass>(config.sizes[0].id);
+  const [serviceIds, setServiceIds] = useState<string[]>([]);
+  const [addOnIds, setAddOnIds] = useState<string[]>([]);
 
-  const toggle = (id: ServiceId) => {
-    setSelected((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+  // An industry switch invalidates the size class and every service id.
+  useEffect(() => {
+    setSize(config.sizes[0].id);
+    setServiceIds([]);
+    setAddOnIds([]);
+  }, [industry, config.sizes]);
+
+  const services = useMemo(() => availableServices(industry, size), [industry, size]);
+  const addOns = useMemo(() => availableAddOns(serviceIds, size), [serviceIds, size]);
+
+  const estimate = useMemo(
+    () => calculateEstimate({ industry, size, serviceIds, addOnIds }),
+    [industry, size, serviceIds, addOnIds]
+  );
+
+  const toggleService = (id: string) => {
+    const next = serviceIds.includes(id)
+      ? serviceIds.filter((s) => s !== id)
+      : [...serviceIds, id];
+    setServiceIds(next);
+    const ok = new Set(availableAddOns(next, size).map((a) => a.id));
+    setAddOnIds((prev) => prev.filter((a) => ok.has(a)));
   };
 
   return (
-    <section id="pricing" className="border-t border-white/10 bg-charcoal/40 py-28">
+    <section id="pricing" className="border-t border-white/10 bg-charcoal/40 py-20 sm:py-28">
       <div className="mx-auto max-w-[1400px] px-6 lg:px-10">
-        <div className="mb-14 max-w-xl">
-          <p className="eyebrow mb-4">Instant Estimate</p>
-          <h2 className="font-display text-4xl font-bold tracking-tightest sm:text-5xl">
-            Know the number before you book.
+        <div className="mb-10 max-w-xl sm:mb-14">
+          <p className="eyebrow mb-4">Instant Estimate · {config.label}</p>
+          <h2 className="font-display text-3xl font-bold tracking-tightest sm:text-5xl">
+            Know the number before you commit.
           </h2>
         </div>
 
-        <div className="grid gap-10 lg:grid-cols-[1fr_420px]">
-          {/* Selector panel */}
+        <div className="grid gap-8 lg:grid-cols-[1fr_420px] lg:gap-10">
           <div>
-            <p className="eyebrow mb-4">01 — Vehicle Size</p>
-            <div className="flex flex-wrap gap-2.5">
-              {SIZES.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSize(s)}
-                  className={`rounded-sm border px-5 py-2.5 font-mono text-[12px] uppercase tracking-widest2 transition-all duration-200 ${
-                    size === s
-                      ? 'border-apex bg-apex/10 text-white'
-                      : 'border-white/15 text-smoke/60 hover:border-white/35'
-                  }`}
-                >
-                  {SIZE_LABEL[s]}
-                </button>
-              ))}
-            </div>
-
-            <p className="eyebrow mb-4 mt-10">02 — Choose Services</p>
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {services.map((svc) => {
-                const active = selected.includes(svc.id);
+            <p className="eyebrow mb-4">01 — {config.sizeLabel}</p>
+            <div role="radiogroup" aria-label={config.sizeLabel} className="flex flex-wrap gap-2.5">
+              {config.sizes.map((s) => {
+                const active = size === s.id;
                 return (
                   <button
-                    key={svc.id}
-                    onClick={() => toggle(svc.id)}
-                    className={`flex items-center justify-between gap-3 rounded-sm border px-4 py-3.5 text-left transition-all duration-200 ${
+                    key={s.id}
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => {
+                      setSize(s.id);
+                      setServiceIds([]);
+                      setAddOnIds([]);
+                    }}
+                    className={`rounded-sm border px-4 py-2.5 font-mono text-[12px] uppercase tracking-widest2 transition-all duration-200 ${
                       active
-                        ? 'border-apex/60 bg-apex/5'
-                        : 'border-white/12 hover:border-white/30'
+                        ? 'border-apex bg-apex/10 text-white'
+                        : 'border-white/20 text-muted hover:border-white/45 hover:text-white'
                     }`}
                   >
-                    <span className="text-sm text-white/90">{svc.name}</span>
-                    <span
-                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border ${
-                        active ? 'border-apex bg-apex' : 'border-white/25'
-                      }`}
-                    >
-                      {active && (
-                        <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
-                          <path d="M1 3.5L3.2 5.8L8 1" stroke="white" strokeWidth="1.4" />
-                        </svg>
-                      )}
-                    </span>
+                    {s.label}
                   </button>
                 );
               })}
             </div>
+
+            <p className="eyebrow mb-4 mt-9">02 — Services</p>
+            <div role="group" aria-label="Services" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+              {services.map((svc) => {
+                const price = svc.prices[size];
+                return (
+                  <ChoiceCard
+                    key={svc.id}
+                    selected={serviceIds.includes(svc.id)}
+                    onToggle={() => toggleService(svc.id)}
+                    title={svc.name}
+                    meta={price ? formatPrice(price.price, price.priceMax) : undefined}
+                  />
+                );
+              })}
+            </div>
+
+            {addOns.length > 0 && (
+              <>
+                <p className="eyebrow mb-4 mt-9">03 — Add-ons</p>
+                <div role="group" aria-label="Add-ons" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                  {addOns.map((a) => {
+                    const price = a.prices[size];
+                    return (
+                      <ChoiceCard
+                        key={a.id}
+                        selected={addOnIds.includes(a.id)}
+                        onToggle={() =>
+                          setAddOnIds((prev) =>
+                            prev.includes(a.id) ? prev.filter((x) => x !== a.id) : [...prev, a.id]
+                          )
+                        }
+                        title={a.name}
+                        meta={price ? formatPrice(price.price, price.priceMax) : undefined}
+                      />
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
 
-          {/* Telemetry readout */}
-          <div className="glass-panel h-fit rounded-md p-8 shadow-card">
-            <p className="eyebrow mb-6">Estimate Readout</p>
+          {/* Readout */}
+          <div className="glass-panel h-fit rounded-md p-6 shadow-card sm:p-8 lg:sticky lg:top-24">
+            <p className="eyebrow mb-5">Estimate Readout</p>
 
-            <AnimatePresence mode="wait">
-              {estimate ? (
-                <motion.div
-                  key={`${size}-${selected.join(',')}`}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="flex flex-col gap-5 font-mono"
+            {estimate ? (
+              <motion.div
+                key={`${size}-${serviceIds.join(',')}-${addOnIds.join(',')}`}
+                initial={reduced ? false : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: reduced ? 0 : 0.22 }}
+                className="flex flex-col gap-4 font-mono"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-[11px] uppercase tracking-widest2 text-subtle">
+                    Estimated Total
+                  </span>
+                  <span className="text-2xl font-semibold text-white">
+                    {formatPrice(estimate.total, estimate.totalMax)}
+                  </span>
+                </div>
+
+                <div className="hairline" />
+
+                <Readout
+                  label="Services"
+                  value={formatPrice(estimate.basePrice, estimate.basePriceMax)}
+                />
+                {estimate.addOnPrice > 0 && (
+                  <Readout
+                    label="Add-ons"
+                    value={formatPrice(estimate.addOnPrice, estimate.addOnPriceMax)}
+                  />
+                )}
+                <Readout label="Estimated Time" value={formatHours(estimate.estimatedHours)} />
+
+                {estimate.isPlaceholderPricing && (
+                  <p className="rounded-sm border border-amber-500/40 bg-amber-500/10 px-3 py-2 font-body text-[12px] leading-relaxed text-amber-200">
+                    Indicative only — {config.label.toLowerCase()} rates are being finalised and
+                    will be confirmed before scheduling.
+                  </p>
+                )}
+
+                <button
+                  onClick={() => onRequest({ sizeClass: size, serviceIds, addOnIds })}
+                  className="btn-apex mt-3 w-full"
                 >
-                  <Readout label="Estimated Price" value={formatCurrency(estimate.estimatedPrice)} big />
-                  <div className="hairline" />
-                  <Readout label="Estimated Time" value={`${estimate.estimatedHours} hrs`} />
-                  <Readout label="Deposit Required" value={formatCurrency(estimate.depositRequired)} />
-                  <Readout label="Est. Completion" value={estimate.estimatedCompletion} />
-
-                  <button
-                    onClick={() => onBook(selected, size)}
-                    className="btn-apex mt-4 w-full"
-                  >
-                    Book Appointment
-                  </button>
-                </motion.div>
-              ) : (
-                <p className="py-8 text-center text-sm text-smoke/50">
-                  Select at least one service to generate an estimate.
-                </p>
-              )}
-            </AnimatePresence>
+                  Request This Estimate
+                </button>
+              </motion.div>
+            ) : (
+              <p className="py-8 text-center text-sm text-muted">
+                Select at least one service to generate an estimate.
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -124,13 +199,11 @@ export default function EstimateCalculator({
   );
 }
 
-function Readout({ label, value, big }: { label: string; value: string; big?: boolean }) {
+function Readout({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-between">
-      <span className="text-[11px] uppercase tracking-widest2 text-smoke/50">{label}</span>
-      <span className={big ? 'text-2xl font-semibold text-white' : 'text-sm text-white/90'}>
-        {value}
-      </span>
+    <div className="flex items-baseline justify-between gap-3">
+      <span className="text-[11px] uppercase tracking-widest2 text-subtle">{label}</span>
+      <span className="text-sm text-white">{value}</span>
     </div>
   );
 }

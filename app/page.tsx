@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useCallback, useState } from 'react';
+import { IndustryProvider } from '@/components/IndustryProvider';
 import Navbar from '@/components/Navbar';
 import Hero from '@/components/Hero';
 import EstimateCalculator from '@/components/EstimateCalculator';
@@ -9,50 +11,58 @@ import Gallery from '@/components/Gallery';
 import Reviews from '@/components/Reviews';
 import WhyChooseUs from '@/components/WhyChooseUs';
 import Footer from '@/components/Footer';
-import BookingModal, { BookingPrefill } from '@/components/BookingFlow/BookingModal';
-import { ServiceId, VehicleSize } from '@/lib/types';
+import type { EstimatePrefill } from '@/components/EstimateFlow/EstimateModal';
+
+// The wizard and its five steps are only needed once someone opens it — keeping
+// them out of the initial bundle. `ssr: false` is safe here because the modal
+// renders nothing until `open` is true.
+const EstimateModal = dynamic(() => import('@/components/EstimateFlow/EstimateModal'), {
+  ssr: false,
+});
 
 export default function Home() {
-  const [bookingOpen, setBookingOpen] = useState(false);
-  const [prefill, setPrefill] = useState<BookingPrefill>({});
+  const [open, setOpen] = useState(false);
+  const [prefill, setPrefill] = useState<EstimatePrefill>({});
 
-  const openBooking = (p: BookingPrefill = {}) => {
+  const openEstimate = useCallback((p: EstimatePrefill = {}) => {
     setPrefill(p);
-    setBookingOpen(true);
-  };
+    setOpen(true);
+  }, []);
 
   return (
-    <main className="pb-20 lg:pb-0">
-      <Navbar onBookNow={() => openBooking()} />
+    <IndustryProvider>
+      <a href="#main" className="skip-link">
+        Skip to content
+      </a>
 
-      <Hero
-        onOpenBooking={(p) => openBooking(p)}
-      />
+      <Navbar onGetEstimate={() => openEstimate()} />
 
-      <EstimateCalculator
-        onBook={(services: ServiceId[], size: VehicleSize) =>
-          openBooking({ serviceId: services[0] })
-        }
-      />
+      <main id="main" className="pb-20 lg:pb-0">
+        <Hero onStartEstimate={() => openEstimate()} />
 
-      <ServicesGrid onBook={(serviceId) => openBooking({ serviceId })} />
+        <EstimateCalculator
+          onRequest={({ sizeClass, serviceIds, addOnIds }) =>
+            openEstimate({ sizeClass, serviceIds, addOnIds })
+          }
+        />
 
-      <Gallery />
+        <ServicesGrid onBook={(serviceId) => openEstimate({ serviceIds: [serviceId] })} />
 
-      <WhyChooseUs />
-
-      <Reviews />
+        <Gallery />
+        <WhyChooseUs />
+        <Reviews />
+      </main>
 
       <Footer />
 
-      {/* Mobile sticky Book Now bar */}
+      {/* Mobile sticky CTA */}
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-obsidian/95 p-4 backdrop-blur-md lg:hidden">
-        <button onClick={() => openBooking()} className="btn-apex w-full">
-          Book Now
+        <button onClick={() => openEstimate()} className="btn-apex w-full">
+          Get My Estimate
         </button>
       </div>
 
-      <BookingModal open={bookingOpen} onClose={() => setBookingOpen(false)} prefill={prefill} />
-    </main>
+      <EstimateModal open={open} onClose={() => setOpen(false)} prefill={prefill} />
+    </IndustryProvider>
   );
 }

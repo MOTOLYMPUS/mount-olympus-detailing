@@ -1,78 +1,125 @@
-import { EstimateResult, ServiceId, VehicleSize } from './types';
+// ─────────────────────────────────────────────────────────────────────────────
+// Pricing engine.
+//
+// Prices are looked up from fixed (service × size class) tables in data/pricing/
+// — there is no multiplier maths and no invented numbers. If a service has no
+// entry for the selected size class, it is not offered for that size, full stop.
+//
+// This module is imported by BOTH the client (live estimate display) and the
+// API route (authoritative recomputation). The server never trusts a
+// client-supplied total; it recalculates from the same tables.
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Base price/hours per service, tuned for a mid-size coupe. Multiplied by
-// the vehicle-size factor below. All figures are placeholders for the
-// business owner to calibrate against real shop rates.
-export const SERVICE_BASE: Record<ServiceId, { price: number; hours: number }> = {
-  'paint-correction': { price: 650, hours: 6 },
-  'ceramic-coating': { price: 900, hours: 8 },
-  ppf: { price: 2400, hours: 14 },
-  interior: { price: 320, hours: 3 },
-  exterior: { price: 220, hours: 2 },
-  'engine-bay': { price: 140, hours: 1.5 },
-  'window-coating': { price: 180, hours: 1.5 },
-  'headlight-restoration': { price: 120, hours: 1 },
-};
+import { getAddOn, getService, pricingIsPlaceholder, servicesForIndustry } from '@/data/pricing';
+import { AddOnDef, EstimateLine, EstimateResult, Industry, ServiceDef, SizeClass } from './types';
 
-export const SIZE_MULTIPLIER: Record<VehicleSize, number> = {
-  sedan: 0.9,
-  coupe: 1,
-  suv: 1.2,
-  truck: 1.3,
-  exotic: 1.5,
-};
+/** Services offered for a given industry AND size class. */
+export function availableServices(industry: Industry, size: SizeClass | null): ServiceDef[] {
+  const all = servicesForIndustry(industry);
+  if (!size) return all;
+  return all.filter((s) => s.prices[size] !== undefined);
+}
 
-export const SIZE_LABEL: Record<VehicleSize, string> = {
-  sedan: 'Sedan',
-  coupe: 'Coupe',
-  suv: 'SUV',
-  truck: 'Truck',
-  exotic: 'Exotic',
-};
+/** Add-ons attachable to the currently selected services, for this size class. */
+export function availableAddOns(serviceIds: string[], size: SizeClass | null): AddOnDef[] {
+  const ids = new Set<string>();
+  serviceIds.forEach((sid) => getService(sid)?.addOnIds?.forEach((a) => ids.add(a)));
 
-const DEPOSIT_RATE = 0.25;
-const BUSINESS_HOURS_PER_DAY = 7;
-
-export function calculateEstimate(
-  size: VehicleSize,
-  services: ServiceId[]
-): EstimateResult | null {
-  if (services.length === 0) return null;
-
-  const multiplier = SIZE_MULTIPLIER[size];
-
-  let price = 0;
-  let hours = 0;
-  services.forEach((id) => {
-    const base = SERVICE_BASE[id];
-    price += base.price * multiplier;
-    hours += base.hours * multiplier;
+  const out: AddOnDef[] = [];
+  ids.forEach((id) => {
+    const addOn = getAddOn(id);
+    if (!addOn) return;
+    if (size && addOn.prices[size] === undefined) return;
+    out.push(addOn);
   });
+  return out;
+}
 
-  // Bundling more than one service earns a small efficiency discount,
-  // mirroring how a real shop would price combined work.
-  if (services.length >= 2) price *= 0.95;
-  if (services.length >= 4) price *= 0.97;
+export interface EstimateInput {
+  industry: Industry;
+  size: SizeClass | null;
+  serviceIds: string[];
+  addOnIds: string[];
+}
 
-  const roundedPrice = Math.round(price / 5) * 5;
-  const roundedHours = Math.round(hours * 2) / 2;
-  const deposit = Math.round((roundedPrice * DEPOSIT_RATE) / 5) * 5;
+/**
+ * Build a full estimate. Returns null when there is nothing to price yet.
+ *
+ * Unknown ids, and ids that carry no price for the selected size class, are
+ * skipped rather than throwing — a stale selection left over from an industry
+ * switch must never produce a wrong number or a crash.
+ */
+export function calculateEstimate({
+  industry,
+  size,
+  serviceIds,
+  addOnIds,
+}: EstimateInput): EstimateResult | null {
+  if (!size || serviceIds.length === 0) return null;
 
-  const daysNeeded = Math.max(1, Math.ceil(roundedHours / BUSINESS_HOURS_PER_DAY));
-  const completion = new Date();
-  completion.setDate(completion.getDate() + daysNeeded + 1); // +1 buffer for queue
+  const lines: EstimateLine[] = [];
+  let basePrice = 0;
+  let basePriceMax = 0;
+  let addOnPrice = 0;
+  let addOnPriceMax = 0;
+  let estimatedHours = 0;
+
+  for (const id of serviceIds) {
+    const svc = getService(id);
+    if (!svc || svc.industry !== industry) continue;
+    const price = svc.prices[size];
+    if (!price) continue;
+
+    lines.push({
+      id: svc.id,
+      label: svc.name,
+      kind: 'service',
+      price: price.price,
+      priceMax: price.priceMax,
+    });
+    basePrice += price.price;
+    basePriceMax += price.priceMax ?? price.price;
+    estimatedHours += svc.estimatedHours;
+  }
+
+  // An add-on only counts if one of the selected services actually offers it.
+  const attachable = new Set(availableAddOns(serviceIds, size).map((a) => a.id));
+
+  for (const id of addOnIds) {
+    if (!attachable.has(id)) continue;
+    const addOn = getAddOn(id);
+    if (!addOn || addOn.industry !== industry) continue;
+    const price = addOn.prices[size];
+    if (!price) continue;
+
+    lines.push({
+      id: addOn.id,
+      label: addOn.name,
+      kind: 'addon',
+      price: price.price,
+      priceMax: price.priceMax,
+    });
+    addOnPrice += price.price;
+    addOnPriceMax += price.priceMax ?? price.price;
+    estimatedHours += addOn.estimatedHours;
+  }
+
+  if (lines.length === 0) return null;
 
   return {
-    estimatedHours: roundedHours,
-    estimatedPrice: roundedPrice,
-    depositRequired: deposit,
-    estimatedCompletion: completion.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    }),
+    lines,
+    basePrice,
+    basePriceMax,
+    addOnPrice,
+    addOnPriceMax,
+    total: basePrice + addOnPrice,
+    totalMax: basePriceMax + addOnPriceMax,
+    estimatedHours: Math.round(estimatedHours * 2) / 2,
+    isPlaceholderPricing: pricingIsPlaceholder[industry],
   };
 }
+
+// ── Formatting ───────────────────────────────────────────────────────────────
 
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -80,4 +127,26 @@ export function formatCurrency(value: number): string {
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+/** "$70" for a fixed price, "$50 – $75" when the quote is a range. */
+export function formatPrice(price: number, priceMax?: number): string {
+  if (priceMax !== undefined && priceMax !== price) {
+    return `${formatCurrency(price)} – ${formatCurrency(priceMax)}`;
+  }
+  return formatCurrency(price);
+}
+
+/** Lowest price a service is offered at, across all size classes. */
+export function startingPrice(service: ServiceDef): number {
+  const values = Object.values(service.prices).map((p) => p.price);
+  return values.length ? Math.min(...values) : 0;
+}
+
+export function formatHours(hours: number): string {
+  if (hours >= 8) {
+    const days = Math.ceil(hours / 8);
+    return `${hours} hrs · approx. ${days} ${days === 1 ? 'day' : 'days'}`;
+  }
+  return `${hours} hrs`;
 }

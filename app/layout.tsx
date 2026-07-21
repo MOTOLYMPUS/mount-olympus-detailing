@@ -1,5 +1,6 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Archivo, Inter, JetBrains_Mono } from 'next/font/google';
+import { business, siteUrl } from '@/lib/business';
 import './globals.css';
 
 const display = Archivo({
@@ -24,24 +25,47 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Mount Olympus Detailing — Luxury Paint Correction, Ceramic Coating & PPF',
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: `${business.name} — Automotive, Marine & Aviation Detailing`,
+    template: `%s · ${business.name}`,
+  },
   description:
-    'Certified paint correction, ceramic coating, and paint protection film for Ferrari, Porsche, Lamborghini, McLaren, and the world\'s finest performance vehicles. Instant estimates, real-time booking.',
+    'Paint correction, ceramic coating, and full detailing for cars, boats, and aircraft. Instant online estimates across all three industries.',
   keywords: [
-    'luxury car detailing',
-    'ceramic coating near me',
+    'car detailing',
+    'ceramic coating',
     'paint correction',
-    'Ferrari detailer',
-    'Porsche detailing',
-    'PPF installation',
-    'luxury auto spa',
-    'exotic car detailing',
+    'boat detailing',
+    'marine detailing',
+    'gelcoat restoration',
+    'aircraft detailing',
+    'aviation dry wash',
+    'motorcycle detailing',
+    'mobile detailing',
   ],
   openGraph: {
-    title: 'Mount Olympus Detailing',
-    description: 'Perfection, Preserved. Luxury detailing for vehicles that deserve nothing less.',
+    siteName: business.name,
+    title: business.name,
+    description:
+      'Automotive, marine, and aviation detailing. Instant estimates, no phone tag.',
     type: 'website',
+    url: siteUrl,
   },
+  robots: {
+    // The site publishes placeholder business details and stock imagery, so it
+    // is kept out of search indexes until it is genuinely launch-ready. Flip
+    // this once lib/business.ts and data/media.ts hold real values.
+    index: false,
+    follow: false,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: '#050505',
+  colorScheme: 'dark',
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

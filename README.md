@@ -1,54 +1,125 @@
-# Apex Detailing Atelier
+# Mount Olympus Detailing
 
-Luxury automotive detailing website — Next.js 14 (App Router), TypeScript, Tailwind CSS,
-Framer Motion. Built for paint correction, ceramic coating, PPF, and full detail services
-for exotic/luxury vehicle owners.
+Multi-industry detailing site — **Automotive, Marine, and Aviation** from one codebase.
+Next.js 14 (App Router), TypeScript, Tailwind, Framer Motion, SQLite.
+
+## Requirements
+
+**Node >= 22.5** — the database uses Node's built-in `node:sqlite` module. Check with
+`node --version`.
 
 ## Getting started
 
 ```bash
 npm install
-npm run dev
+npm run dev        # http://localhost:3000
 ```
 
-Open http://localhost:3000.
+No environment variables are needed to run. Estimate requests save to `./data.sqlite`
+immediately; email and SMS stay switched off until you configure them (see `.env.example`).
+
+```bash
+npm run build      # production build
+npm start          # serve the build
+npm run typecheck  # tsc --noEmit
+npm test           # end-to-end API smoke tests (needs a running server)
+node scripts/check-images.mjs   # verify every stock image URL still resolves
+```
+
+## How the three industries work
+
+`lib/industries.ts` is the single source of truth. Switching industry changes the hero image,
+headline, subheadline, eyebrow, CTA copy, terminology (`vehicle` / `vessel` / `aircraft`),
+field labels (`Make` / `Builder` / `Manufacturer`), categories, size classes, services,
+pricing, and the "why choose us" points.
+
+No component contains an industry conditional. Adding a fourth industry means adding an entry
+to `lib/industries.ts`, a price table in `data/pricing/`, and a make/model catalog in
+`data/vehicles/` — nothing else.
 
 ## Project structure
 
 ```
-app/                    Next.js App Router entry (layout, page, global styles)
-components/             Reusable UI components
-  BookingFlow/           6-step booking wizard (Vehicle → Service → Estimate → Calendar → Payment → Confirmation)
-  Navbar, Hero, BookingCard, EstimateCalculator, ServicesGrid, Gallery, Reviews, WhyChooseUs, Footer, Calendar
-lib/                    Business logic — pricing engine, availability engine, shared types
-data/                   Mock content — services, reviews, gallery images
+app/
+  api/estimates/route.ts   The one write path: validate → reprice → persist → notify
+  layout.tsx page.tsx      Shell and composition
+  error.tsx not-found.tsx
+components/
+  IndustryProvider.tsx     Industry context
+  IndustrySelector.tsx     The three hero cards (radiogroup)
+  EstimateFlow/            5-step wizard: Vehicle → Services → Estimate → Details → Sent
+  Field.tsx                Shared, labelled, accessible form controls
+lib/
+  industries.ts            Per-industry config — start here
+  pricing.ts               Pricing engine (client + server share it)
+  types.ts db.ts           Domain model, SQLite access
+  validation.ts security.ts notify.ts
+data/
+  pricing/                 Price tables per industry
+  vehicles/                Make/model catalogs (automotive, motorcycle, marine, aviation)
+  media.ts                 Every image URL in the app
+scripts/                   smoke.mjs, check-images.mjs
 ```
 
-## What's real vs. placeholder
+## Pricing
 
-**Real / working today:**
-- Instant estimate calculator (vehicle size × selected services → price, hours, deposit, completion date) — see `lib/pricing.ts`
-- Full 6-step booking flow with client-side state and validation
-- Calendar UI with disabled days/past dates and per-slot availability — currently backed by a deterministic mock in `lib/availability.ts`
-- Responsive layout, mobile sticky Book Now bar, reduced-motion support, visible focus states
+`data/pricing/automotive.ts` holds the owner's **real** price list, keyed on
+(service × size class) — no multipliers, no derived numbers except two clearly marked
+`DERIVED` cells.
 
-**Placeholder — wired for, not connected to, live services:**
-- **Payment** (`components/BookingFlow/StepPayment.tsx`): UI for card / Apple Pay / Google Pay and deposit-vs-full toggle. Replace the `setTimeout` in `BookingModal.tsx`'s `handlePay` with a real Stripe PaymentIntent create + confirm call (client secret from a `/api/create-payment-intent` route you add).
-- **Live availability** (`lib/availability.ts`): swap `getSlotsForDate` for a fetch to Google Calendar API, Calendly, or Square Appointments — same return shape (`TimeSlot[]`) so no component changes are needed.
-- **Confirmation emails/SMS**: hook into SendGrid/Twilio after a successful `handlePay`.
-- **CRM**: push the `BookingState` object to your CRM of choice on confirmation.
+`marine.ts` and `aviation.ts` are **placeholders** — no price list was supplied for those
+industries. Each exports an `*_IS_PLACEHOLDER` flag that is `true`; while it is, the UI shows
+an "indicative pricing" disclosure on every quote and the notification email flags it. Replace
+the numbers and set the flag to `false`.
 
-Fill in `.env.example` → `.env.local` as you connect each service.
+## Contact & notifications
 
-## Design tokens
+Set in `lib/business.ts` — one file, no other hardcoding:
 
-Colors, type scale, and spacing live in `tailwind.config.ts`. The accent red
-(`apex`, `#D4001A`) is intentionally reserved for CTAs, hover, active nav, and
-booking/calendar highlights — don't use it decoratively elsewhere, per the brand brief.
+| | Shown on site? | |
+|---|---|---|
+| Contact email | ✅ public | `Luis.rodriguez621@outlook.com` |
+| Contact phone | ✅ public | `(469) 390-1255` |
+| Backup phone | ❌ **never rendered** | notification failover only |
+| Hours | ✅ public | 12-hour clock (`8:00 AM – 7:00 PM`) |
 
-## Images
+On every estimate submission the owner gets an email to the contact address and an SMS to the
+primary number. **The backup number is a failover, not a duplicate** — it only fires if the
+primary send fails, so a normal lead is one text.
 
-Hero and service imagery currently point to Unsplash placeholders. Swap the URLs in
-`data/services.ts`, `data/gallery.ts`, and `components/Hero.tsx` for real photography —
-the brief calls for the vehicle itself (Ferrari 488/SF90/F8 or Porsche GT3 RS/Turbo S/GT4 RS)
-as the hero centerpiece, not stock detailing photos.
+The backup number is deliberately **not** part of the `business` object. It lives in a separate
+`internalNotificationTargets` export in `lib/business.ts`, referenced only by the server-side
+failover in `lib/notify.ts`, so it cannot be reached by anything rendering `business.*` and
+never reaches the client bundle. Verified against the build output and the served HTML.
+
+Recipients default to the values above with no environment configuration; `BUSINESS_EMAIL`,
+`BUSINESS_PHONE`, and `BUSINESS_PHONE_BACKUP` exist only to redirect them.
+
+## Domain, booking link, payments
+
+| Item | Status | To change |
+|---|---|---|
+| **Domain** | Not registered. Falls back to `localhost:3000`. | Set `NEXT_PUBLIC_SITE_URL` |
+| **Booking calendar** | Not configured. Provider-agnostic — Calendly, Google, Square, Acuity all work. | Set `NEXT_PUBLIC_BOOKING_URL`; a "Book Your Slot" button then appears on the confirmation screen and in the customer email |
+| **Payments** | None. Quote-only by design: you confirm the price, then take payment in person or by invoice. No PCI scope, no processor fees. | See `.env.example` |
+
+Nothing renders a dead link when these are unset — the booking button simply isn't drawn.
+
+## Before you launch
+
+These are deliberate, visible blockers — none of them fail silently:
+
+1. **`data/media.ts`** — all imagery is Unsplash stock, not your work.
+2. **`data/reviews.ts`** — emptied. The previous version shipped four invented testimonials and
+   a fake "5.0 · 214 Google Reviews" badge; publishing those violates the FTC rule on consumer
+   reviews (16 CFR Part 465). Repopulate only with real, permitted reviews.
+3. **`data/gallery.ts`** — before/after pairs emptied. The old ones were the same photo twice
+   with a desaturation filter on the "before".
+4. **Marine + aviation pricing** — placeholder figures, flagged in the UI. Replace them and
+   clear the two `*_IS_PLACEHOLDER` flags.
+5. **`app/layout.tsx`** — `robots` is set to `noindex` so the site can't be indexed while the
+   above are outstanding. Flip it when they're resolved.
+6. **Privacy policy + terms** — not written. Required before SMS (A2P 10DLC registration) and
+   for GDPR/CCPA once you're storing names, emails, and phone numbers.
+
+See `COMPLETION.md` for the full status report and `AUDIT.md` for the original audit.

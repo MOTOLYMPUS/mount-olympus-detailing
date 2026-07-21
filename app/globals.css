@@ -3,7 +3,14 @@
 @tailwind utilities;
 
 :root {
+  /* The page itself is a dark-only design. `color-scheme` is declared so the
+     browser paints native widgets (scrollbars, and crucially the <select>
+     popup) with dark chrome to match. */
   color-scheme: dark;
+
+  --surface-input: #16181c;
+  --surface-input-hover: #22252b;
+  --text-on-input: #ffffff;
 }
 
 * {
@@ -36,8 +43,13 @@ html {
   border-radius: 2px;
 }
 
+/* Skip link — visible only once focused */
+.skip-link {
+  @apply absolute left-4 top-4 z-[999] -translate-y-24 rounded-sm bg-apex px-4 py-2 font-mono text-[12px] uppercase tracking-widest2 text-white transition-transform focus:translate-y-0;
+}
+
 .eyebrow {
-  @apply font-mono text-[11px] uppercase tracking-widest2 text-smoke/60;
+  @apply font-mono text-[11px] uppercase tracking-widest2 text-subtle;
 }
 
 .hairline {
@@ -52,13 +64,114 @@ html {
 }
 
 .btn-apex {
-  @apply inline-flex items-center justify-center gap-2 rounded-sm bg-apex px-7 py-3.5 font-mono text-[13px] font-medium uppercase tracking-widest2 text-white transition-all duration-300 ease-apex hover:bg-[#ef0020] hover:shadow-[0_0_28px_rgba(212,0,26,0.45)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:shadow-none;
+  @apply inline-flex items-center justify-center gap-2 rounded-sm bg-apex px-7 py-3.5 font-mono text-[13px] font-medium uppercase tracking-widest2 text-white transition-all duration-300 ease-apex hover:bg-[#ef0020] hover:shadow-[0_0_28px_rgba(212,0,26,0.45)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-apex disabled:hover:shadow-none;
 }
 
 .btn-ghost {
-  @apply inline-flex items-center justify-center gap-2 rounded-sm border border-white/20 px-7 py-3.5 font-mono text-[13px] font-medium uppercase tracking-widest2 text-white transition-all duration-300 ease-apex hover:border-white/50 active:scale-[0.98];
+  @apply inline-flex items-center justify-center gap-2 rounded-sm border border-white/25 px-7 py-3.5 font-mono text-[13px] font-medium uppercase tracking-widest2 text-white transition-all duration-300 ease-apex hover:border-white/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
 }
 
 .input-field {
-  @apply w-full rounded-sm border border-white/15 bg-white/[0.03] px-4 py-3 font-body text-sm text-white placeholder:text-white/30 outline-none transition-colors duration-200 focus:border-apex/70;
+  @apply w-full rounded-sm border border-white/20 bg-white/[0.04] px-4 py-3 font-body text-sm text-white placeholder:text-subtle outline-none transition-colors duration-200 focus:border-apex/70;
+}
+
+.input-field:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   SELECT / DROPDOWN LEGIBILITY
+   ───────────────────────────────────────────────────────────────────────────
+   The bug this fixes: `.input-field` sets `color: #fff` on the <select>. The
+   <option> elements inherit that white text, but the dropdown popup is drawn by
+   the operating system — on Windows/Chrome with a light OS theme that popup has
+   a WHITE background. Result: white text on white, readable only when the OS
+   hover highlight paints behind it.
+
+   Inheritance alone can't fix it; the options need their own explicit
+   background AND color. We set both, for both OS colour schemes, and restore
+   the dropdown arrow that `appearance-none` strips. */
+
+select.input-field {
+  /* Keep native appearance off so the control matches the text inputs, then
+     hand-draw the chevron. `padding-right` reserves room for it. */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding-right: 2.75rem;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none'%3e%3cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23ffffff' stroke-opacity='0.65' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 12px 8px;
+  cursor: pointer;
+  /* Forces the native popup to dark chrome where the engine honours it. */
+  color-scheme: dark;
+}
+
+/* The actual fix — explicit colours on the options themselves. */
+select.input-field option,
+select.input-field optgroup {
+  background-color: var(--surface-input);
+  color: var(--text-on-input);
+  /* Firefox/Linux draw options flush; a little padding keeps them legible. */
+  padding: 8px 10px;
+}
+
+/* The placeholder option stays dimmer than real choices, but never invisible —
+   it must still clear the 4.5:1 contrast floor against the popup background. */
+select.input-field option[value=''] {
+  color: #9aa0a6;
+}
+
+/* When the OS is in light mode the popup may still be painted light regardless
+   of `color-scheme`. Give the options a light-appropriate pair so they are
+   legible either way rather than betting on one. */
+@media (prefers-color-scheme: light) {
+  select.input-field option,
+  select.input-field optgroup {
+    background-color: #ffffff;
+    color: #111318;
+  }
+  select.input-field option[value=''] {
+    color: #5f6368;
+  }
+}
+
+/* Windows High Contrast / forced-colors: stop overriding the system palette. */
+@media (forced-colors: active) {
+  select.input-field option,
+  select.input-field optgroup {
+    background-color: Canvas;
+    color: CanvasText;
+  }
+}
+
+/* The closed control must always show its selected value clearly — this is the
+   half of the bug users hit before ever opening the menu. */
+select.input-field:not(:disabled) {
+  color: var(--text-on-input);
+}
+
+/* Native date inputs: make the picker icon visible on a dark field. */
+input[type='date'].input-field::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.6;
+  cursor: pointer;
+}
+input[type='date'].input-field::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Range input (before/after slider) — Firefox needs its own thumb rule, which
+   the original stylesheet was missing. */
+input[type='range'].compare-slider::-moz-range-thumb {
+  width: 4px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: #d4001a;
+  cursor: ew-resize;
+}
+input[type='range'].compare-slider::-moz-range-track {
+  background: transparent;
 }

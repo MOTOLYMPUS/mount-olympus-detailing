@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "next": "14.2.5",
@@ -15,9 +17,12 @@
     "framer-motion": "^11.3.19",
     "clsx": "^2.1.1"
   },
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "devDependencies": {
     "typescript": "^5.5.4",
-    "@types/node": "^20.14.13",
+    "@types/node": "^22.7.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",

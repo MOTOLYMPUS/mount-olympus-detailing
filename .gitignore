@@ -5,3 +5,9 @@ out
 .env*.local
 .DS_Store
 *.log
+
+# SQLite database — contains real customer contact details. Never commit.
+data.sqlite
+data.sqlite-shm
+data.sqlite-wal
+*.sqlite
