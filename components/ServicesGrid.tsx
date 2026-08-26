@@ -35,11 +35,13 @@ import Image from 'next/image';
 import { useIndustry } from './IndustryProvider';
 import { servicesForIndustry } from '@/data/pricing';
 import { formatCurrency, formatHours, startingPrice } from '@/lib/pricing';
+import { usePriceOverrides } from './pricing/usePriceOverrides';
 import Backdrop from './visual/Backdrop';
 import Reveal from './visual/Reveal';
 
 export default function ServicesGrid({ onBook }: { onBook: (serviceId: string) => void }) {
   const { industry, config } = useIndustry();
+  const overrides = usePriceOverrides();
   const services = servicesForIndustry(industry);
 
   return (
@@ -181,7 +183,7 @@ export default function ServicesGrid({ onBook }: { onBook: (serviceId: string) =
                       Starting at
                     </p>
                     <p className="mt-0.5 font-display text-2xl font-bold leading-none tracking-tightest text-white">
-                      {formatCurrency(startingPrice(svc))}
+                      {formatCurrency(startingPrice(svc, overrides))}
                     </p>
                   </div>
                 </div>

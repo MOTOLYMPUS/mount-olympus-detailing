@@ -11,7 +11,7 @@
 // looks like a value of zero.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Alert, PageHeader } from '@/components/ui';
+import { Alert, LinkButton, PageHeader } from '@/components/ui';
 import SettingsEditor from '@/components/admin/SettingsEditor';
 import { requireRolePage } from '@/lib/guards';
 import {
@@ -34,6 +34,7 @@ export default function AdminSettingsPage() {
         eyebrow="Configuration"
         title="Settings"
         description="Opening hours, scheduling policy, closures, service areas and membership plans."
+        action={<LinkButton href="/admin/pricing">Edit pricing</LinkButton>}
       />
 
       <Alert tone="warning" title="These take effect immediately">

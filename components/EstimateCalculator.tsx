@@ -10,7 +10,9 @@ import {
   calculateEstimate,
   formatHours,
   formatPrice,
+  priceFor,
 } from '@/lib/pricing';
+import { usePriceOverrides } from './pricing/usePriceOverrides';
 import { SizeClass } from '@/lib/types';
 import { usePrefersReducedMotion } from '@/lib/useDialog';
 import Backdrop from './visual/Backdrop';
@@ -31,6 +33,7 @@ interface Props {
 export default function EstimateCalculator({ onRequest }: Props) {
   const { industry, config } = useIndustry();
   const reduced = usePrefersReducedMotion();
+  const overrides = usePriceOverrides();
 
   const [size, setSize] = useState<SizeClass>(config.sizes[0].id);
   const [serviceIds, setServiceIds] = useState<string[]>([]);
@@ -47,8 +50,8 @@ export default function EstimateCalculator({ onRequest }: Props) {
   const addOns = useMemo(() => availableAddOns(serviceIds, size), [serviceIds, size]);
 
   const estimate = useMemo(
-    () => calculateEstimate({ industry, size, serviceIds, addOnIds }),
-    [industry, size, serviceIds, addOnIds]
+    () => calculateEstimate({ industry, size, serviceIds, addOnIds, overrides }),
+    [industry, size, serviceIds, addOnIds, overrides]
   );
 
   const toggleService = (id: string) => {
@@ -107,7 +110,7 @@ export default function EstimateCalculator({ onRequest }: Props) {
             <p className="eyebrow mb-4 mt-9">02 — Services</p>
             <div role="group" aria-label="Services" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
               {services.map((svc) => {
-                const price = svc.prices[size];
+                const price = priceFor(svc, size, overrides);
                 return (
                   <ChoiceCard
                     key={svc.id}
@@ -125,7 +128,7 @@ export default function EstimateCalculator({ onRequest }: Props) {
                 <p className="eyebrow mb-4 mt-9">03 — Add-ons</p>
                 <div role="group" aria-label="Add-ons" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   {addOns.map((a) => {
-                    const price = a.prices[size];
+                    const price = priceFor(a, size, overrides);
                     return (
                       <ChoiceCard
                         key={a.id}

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useIndustry } from '../IndustryProvider';
 import { useDialog, usePrefersReducedMotion } from '@/lib/useDialog';
 import { calculateEstimate } from '@/lib/pricing';
+import { usePriceOverrides } from '../pricing/usePriceOverrides';
 import { SizeClass } from '@/lib/types';
 import ProgressIndicator from './ProgressIndicator';
 import StepVehicle from './StepVehicle';
@@ -62,6 +63,7 @@ const EMPTY: FormState = {
 export default function EstimateModal({ open, onClose, prefill }: Props) {
   const { industry, config } = useIndustry();
   const reduced = usePrefersReducedMotion();
+  const overrides = usePriceOverrides();
   const panelRef = useRef<HTMLDivElement>(null);
 
   const [step, setStep] = useState(0);
@@ -153,8 +155,9 @@ export default function EstimateModal({ open, onClose, prefill }: Props) {
         size: form.sizeClass || null,
         serviceIds: form.serviceIds,
         addOnIds: form.addOnIds,
+        overrides,
       }),
-    [industry, form.sizeClass, form.serviceIds, form.addOnIds]
+    [industry, form.sizeClass, form.serviceIds, form.addOnIds, overrides]
   );
 
   async function submit() {

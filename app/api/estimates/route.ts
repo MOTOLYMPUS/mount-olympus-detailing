@@ -17,6 +17,7 @@ import crypto from 'node:crypto';
 import { validateEstimateRequest } from '@/lib/validation';
 import { calculateEstimate } from '@/lib/pricing';
 import { countRecentByIp, insertEstimateRequest, updateNotificationStatus } from '@/lib/db';
+import { getPriceOverrides } from '@/lib/repo/pricing';
 import { sendEstimateNotifications } from '@/lib/notify';
 import { RATE_LIMIT, clientIp, generateReference, hashIp } from '@/lib/security';
 import { EstimateRequestRecord } from '@/lib/types';
@@ -68,6 +69,9 @@ export async function POST(req: NextRequest) {
     size: input.sizeClass,
     serviceIds: input.serviceIds,
     addOnIds: input.addOnIds,
+    // Authoritative: the price stored, quoted and emailed uses the owner's
+    // admin overrides, never just the code defaults.
+    overrides: getPriceOverrides(),
   });
 
   if (!estimate) {

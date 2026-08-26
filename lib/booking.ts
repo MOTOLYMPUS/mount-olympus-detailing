@@ -24,6 +24,7 @@ import {
 import { ensureJob, getJobByAppointment } from './repo/jobs';
 import { getVehicle } from './repo/vehicles';
 import { getUser } from './repo/users';
+import { getPriceOverrides } from './repo/pricing';
 import { activeMembership, award, ensureLoyaltyAccount, getLoyaltyAccount } from './repo/loyalty';
 import { getSchedulingConfig, getServiceArea } from './repo/settings';
 import { getService } from '@/data/pricing';
@@ -80,6 +81,8 @@ export function priceBooking(input: {
     size: input.sizeClass,
     serviceIds: input.serviceIds,
     addOnIds: input.addOnIds,
+    // Authoritative booking price uses the owner's admin overrides.
+    overrides: getPriceOverrides(),
   });
 
   if (!estimate) {

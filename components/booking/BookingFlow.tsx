@@ -31,7 +31,8 @@ import { Skeleton } from '@/components/visual/Skeleton';
 import { Motes } from '@/components/visual/Effects';
 import { Vehicle, vehicleLabel } from '@/lib/models';
 import { usePrefersReducedMotion } from '@/lib/useDialog';
-import { availableAddOns, availableServices, calculateEstimate, formatHours, formatPrice } from '@/lib/pricing';
+import { availableAddOns, availableServices, calculateEstimate, formatHours, formatPrice, priceFor } from '@/lib/pricing';
+import { usePriceOverrides } from '@/components/pricing/usePriceOverrides';
 import { sizeLabel } from '@/lib/industries';
 
 interface Slot {
@@ -119,6 +120,7 @@ export default function BookingFlow({
 }) {
   const router = useRouter();
   const reduced = usePrefersReducedMotion();
+  const overrides = usePriceOverrides();
 
   const [step, setStep] = useState(0);
   const [vehicleId, setVehicleId] = useState(
@@ -159,9 +161,10 @@ export default function BookingFlow({
             size: vehicle.sizeClass,
             serviceIds,
             addOnIds,
+            overrides,
           })
         : null,
-    [vehicle, serviceIds, addOnIds]
+    [vehicle, serviceIds, addOnIds, overrides]
   );
 
   // ── Load availability ─────────────────────────────────────────────────────
@@ -356,7 +359,7 @@ export default function BookingFlow({
               </legend>
               <div className="grid gap-2">
                 {services.map((s) => {
-                  const price = s.prices[vehicle.sizeClass];
+                  const price = priceFor(s, vehicle.sizeClass, overrides);
                   return (
                     <ChoiceCard
                       key={s.id}
@@ -382,7 +385,7 @@ export default function BookingFlow({
                 </legend>
                 <div className="grid gap-2">
                   {addOns.map((a) => {
-                    const price = a.prices[vehicle.sizeClass];
+                    const price = priceFor(a, vehicle.sizeClass, overrides);
                     return (
                       <ChoiceCard
                         key={a.id}

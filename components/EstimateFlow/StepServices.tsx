@@ -3,7 +3,8 @@
 import { useMemo } from 'react';
 import { useIndustry } from '../IndustryProvider';
 import { ChoiceCard } from '../Field';
-import { availableAddOns, availableServices, formatPrice } from '@/lib/pricing';
+import { availableAddOns, availableServices, formatPrice, priceFor } from '@/lib/pricing';
+import { usePriceOverrides } from '../pricing/usePriceOverrides';
 import { FormState } from './EstimateModal';
 
 interface Props {
@@ -15,6 +16,7 @@ interface Props {
 
 export default function StepServices({ form, set, onBack, onNext }: Props) {
   const { industry } = useIndustry();
+  const overrides = usePriceOverrides();
   const size = form.sizeClass || null;
 
   const services = useMemo(() => availableServices(industry, size), [industry, size]);
@@ -53,7 +55,7 @@ export default function StepServices({ form, set, onBack, onNext }: Props) {
 
       <div role="group" aria-label="Services" className="mt-7 flex flex-col gap-2.5">
         {services.map((svc) => {
-          const price = size ? svc.prices[size] : undefined;
+          const price = size ? priceFor(svc, size, overrides) : undefined;
           return (
             <ChoiceCard
               key={svc.id}
@@ -76,7 +78,7 @@ export default function StepServices({ form, set, onBack, onNext }: Props) {
           <p className="eyebrow mb-3 mt-8">Add-ons</p>
           <div role="group" aria-label="Add-ons" className="flex flex-col gap-2.5">
             {addOns.map((addOn) => {
-              const price = size ? addOn.prices[size] : undefined;
+              const price = size ? priceFor(addOn, size, overrides) : undefined;
               return (
                 <ChoiceCard
                   key={addOn.id}

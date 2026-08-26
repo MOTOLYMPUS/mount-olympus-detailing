@@ -11,7 +11,38 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { getAddOn, getService, pricingIsPlaceholder, servicesForIndustry } from '@/data/pricing';
-import { AddOnDef, EstimateLine, EstimateResult, Industry, ServiceDef, SizeClass } from './types';
+import { AddOnDef, EstimateLine, EstimateResult, Industry, Price, ServiceDef, SizeClass } from './types';
+
+// ── Admin price overrides ────────────────────────────────────────────────────
+//
+// The code tables in data/pricing/ are the DEFAULTS. The owner can override any
+// individual (service × size) price from the admin; those overrides live in the
+// database and are layered on top here.
+//
+// An override can only change a price cell that ALREADY EXISTS — it cannot
+// invent a price for a size a service does not offer. That keeps "which
+// services appear for which size" a structural, code-level decision, while the
+// numbers themselves become editable. Overrides with no matching base cell are
+// ignored rather than trusted.
+//
+// This map is passed in by the caller: the server loads it from the database
+// (authoritative), and the client fetches it once (so the live preview matches
+// what the server will actually store). Passing nothing preserves the original
+// code-only behaviour exactly.
+export type PriceOverrides = Record<string, Partial<Record<SizeClass, Price>>>;
+
+/** Effective price for one item at one size: an override if present, else the code default. */
+export function priceFor(
+  item: { id: string; prices: Partial<Record<SizeClass, Price>> },
+  size: SizeClass,
+  overrides?: PriceOverrides
+): Price | undefined {
+  const base = item.prices[size];
+  // No base cell → the item is not offered at this size; an override cannot
+  // create one. This is the invariant that keeps overrides purely numeric.
+  if (base === undefined) return undefined;
+  return overrides?.[item.id]?.[size] ?? base;
+}
 
 /** Services offered for a given industry AND size class. */
 export function availableServices(industry: Industry, size: SizeClass | null): ServiceDef[] {
@@ -40,6 +71,8 @@ export interface EstimateInput {
   size: SizeClass | null;
   serviceIds: string[];
   addOnIds: string[];
+  /** Admin price overrides. Omit for the raw code defaults. */
+  overrides?: PriceOverrides;
 }
 
 /**
@@ -54,6 +87,7 @@ export function calculateEstimate({
   size,
   serviceIds,
   addOnIds,
+  overrides,
 }: EstimateInput): EstimateResult | null {
   if (!size || serviceIds.length === 0) return null;
 
@@ -67,7 +101,7 @@ export function calculateEstimate({
   for (const id of serviceIds) {
     const svc = getService(id);
     if (!svc || svc.industry !== industry) continue;
-    const price = svc.prices[size];
+    const price = priceFor(svc, size, overrides);
     if (!price) continue;
 
     lines.push({
@@ -89,7 +123,7 @@ export function calculateEstimate({
     if (!attachable.has(id)) continue;
     const addOn = getAddOn(id);
     if (!addOn || addOn.industry !== industry) continue;
-    const price = addOn.prices[size];
+    const price = priceFor(addOn, size, overrides);
     if (!price) continue;
 
     lines.push({
@@ -137,9 +171,12 @@ export function formatPrice(price: number, priceMax?: number): string {
   return formatCurrency(price);
 }
 
-/** Lowest price a service is offered at, across all size classes. */
-export function startingPrice(service: ServiceDef): number {
-  const values = Object.values(service.prices).map((p) => p.price);
+/** Lowest price a service is offered at, across all size classes (overrides applied). */
+export function startingPrice(service: ServiceDef, overrides?: PriceOverrides): number {
+  const sizes = Object.keys(service.prices) as SizeClass[];
+  const values = sizes
+    .map((size) => priceFor(service, size, overrides)?.price)
+    .filter((v): v is number => v !== undefined);
   return values.length ? Math.min(...values) : 0;
 }
 
