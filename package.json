@@ -1,0 +1,42 @@
+{
+  "name": "mount-olympus-detailing",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/smoke.mjs",
+    "test:app": "node scripts/smoke-app.mjs",
+    "test:all": "node scripts/smoke.mjs && node scripts/smoke-app.mjs && npm run verify:jarvis",
+    "verify:jarvis": "tsc -p tsconfig.verify.json && node scripts/verify-jarvis.cjs",
+    "jarvis:tick": "node scripts/jarvis-tick.cjs",
+    "create-admin": "node scripts/create-admin.mjs",
+    "generate-icons": "node scripts/generate-icons.mjs",
+    "generate-vapid": "node scripts/generate-vapid.mjs",
+    "seed-demo": "node scripts/seed-demo.mjs"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "framer-motion": "^11.3.19",
+    "clsx": "^2.1.1"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "@types/node": "^22.7.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.40",
+    "tailwindcss": "^3.4.7",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.5"
+  }
+}

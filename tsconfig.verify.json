@@ -1,0 +1,31 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Compiles lib/ to CommonJS so scripts/verify-jarvis.cjs can exercise the real
+// modules without a running server.
+//
+// WHY A COMPILE STEP AT ALL. The other verify scripts use jiti, which cannot
+// load `node:sqlite` — jiti 1.x predates that built-in, strips the `node:`
+// prefix, and hands back a namespace with no DatabaseSync on it. Node 24 can
+// strip types natively, but this codebase imports types without the `import
+// type` keyword, which native stripping cannot elide. tsc is the one tool that
+// understands both, and it is already a dependency.
+//
+// Output is a temp directory, git-ignored, rebuilt on every verify run.
+// ─────────────────────────────────────────────────────────────────────────────
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "incremental": false,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": ".verify-build",
+    "declaration": false,
+    "sourceMap": false,
+    // The app's own strictness is not the point here; a type error is caught by
+    // `npm run typecheck`. This build only has to produce runnable JavaScript.
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["lib/**/*.ts", "data/**/*.ts"],
+  "exclude": ["node_modules", "**/*.tsx"]
+}

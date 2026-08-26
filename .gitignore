@@ -1,0 +1,31 @@
+node_modules
+.next
+out
+.env.local
+.env*.local
+.DS_Store
+*.log
+
+# SQLite database — contains real customer contact details. Never commit.
+data.sqlite
+data.sqlite-shm
+data.sqlite-wal
+*.sqlite
+
+# Uploaded files — customer vehicle photos and handwritten signatures.
+# Personal data; never commit, and back it up alongside the database rather
+# than relying on version control.
+uploads/
+
+# Alternate build dirs used when two Next instances run in parallel
+.next-*
+
+# Throwaway CommonJS build produced by `npm run verify:jarvis`
+.verify-build/
+
+# Jarvis content drafts. Agent-written copy awaiting review — regenerable, and
+# noisy in a diff. Delete the ignore line if you would rather version them.
+content/drafts/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

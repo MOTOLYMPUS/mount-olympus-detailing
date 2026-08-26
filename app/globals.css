@@ -1,0 +1,649 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* The page itself is a dark-only design. `color-scheme` is declared so the
+     browser paints native widgets (scrollbars, and crucially the <select>
+     popup) with dark chrome to match. */
+  color-scheme: dark;
+
+  --surface-input: #16181c;
+  --surface-input-hover: #22252b;
+  --text-on-input: #ffffff;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Visible keyboard focus everywhere — never suppressed */
+:focus-visible {
+  outline: 2px solid #d4001a;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Skip link — visible only once focused */
+.skip-link {
+  @apply absolute left-4 top-4 z-[999] -translate-y-24 rounded-sm bg-apex px-4 py-2 font-mono text-[12px] uppercase tracking-widest2 text-white transition-transform focus:translate-y-0;
+}
+
+.eyebrow {
+  @apply font-mono text-[11px] uppercase tracking-widest2 text-subtle;
+}
+
+.hairline {
+  @apply h-px w-full bg-white/10;
+}
+
+.glass-panel {
+  background: linear-gradient(180deg, rgba(20, 20, 20, 0.72) 0%, rgba(5, 5, 5, 0.86) 100%);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-apex {
+  @apply inline-flex items-center justify-center gap-2 rounded-sm bg-apex px-7 py-3.5 font-mono text-[13px] font-medium uppercase tracking-widest2 text-white transition-all duration-300 ease-apex hover:bg-[#ef0020] hover:shadow-[0_0_28px_rgba(212,0,26,0.45)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-apex disabled:hover:shadow-none;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-sm border border-white/25 px-7 py-3.5 font-mono text-[13px] font-medium uppercase tracking-widest2 text-white transition-all duration-300 ease-apex hover:border-white/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+.input-field {
+  @apply w-full rounded-sm border border-white/20 bg-white/[0.04] px-4 py-3 font-body text-sm text-white placeholder:text-subtle outline-none transition-colors duration-200 focus:border-apex/70;
+}
+
+.input-field:disabled {
+  @apply cursor-not-allowed opacity-50;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   SELECT / DROPDOWN LEGIBILITY
+   ───────────────────────────────────────────────────────────────────────────
+   The bug this fixes: `.input-field` sets `color: #fff` on the <select>. The
+   <option> elements inherit that white text, but the dropdown popup is drawn by
+   the operating system — on Windows/Chrome with a light OS theme that popup has
+   a WHITE background. Result: white text on white, readable only when the OS
+   hover highlight paints behind it.
+
+   Inheritance alone can't fix it; the options need their own explicit
+   background AND color. We set both, for both OS colour schemes, and restore
+   the dropdown arrow that `appearance-none` strips. */
+
+select.input-field {
+  /* Keep native appearance off so the control matches the text inputs, then
+     hand-draw the chevron. `padding-right` reserves room for it. */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  padding-right: 2.75rem;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8' fill='none'%3e%3cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23ffffff' stroke-opacity='0.65' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 12px 8px;
+  cursor: pointer;
+  /* Forces the native popup to dark chrome where the engine honours it. */
+  color-scheme: dark;
+}
+
+/* The actual fix — explicit colours on the options themselves. */
+select.input-field option,
+select.input-field optgroup {
+  background-color: var(--surface-input);
+  color: var(--text-on-input);
+  /* Firefox/Linux draw options flush; a little padding keeps them legible. */
+  padding: 8px 10px;
+}
+
+/* The placeholder option stays dimmer than real choices, but never invisible —
+   it must still clear the 4.5:1 contrast floor against the popup background. */
+select.input-field option[value=''] {
+  color: #9aa0a6;
+}
+
+/* When the OS is in light mode the popup may still be painted light regardless
+   of `color-scheme`. Give the options a light-appropriate pair so they are
+   legible either way rather than betting on one. */
+@media (prefers-color-scheme: light) {
+  select.input-field option,
+  select.input-field optgroup {
+    background-color: #ffffff;
+    color: #111318;
+  }
+  select.input-field option[value=''] {
+    color: #5f6368;
+  }
+}
+
+/* Windows High Contrast / forced-colors: stop overriding the system palette. */
+@media (forced-colors: active) {
+  select.input-field option,
+  select.input-field optgroup {
+    background-color: Canvas;
+    color: CanvasText;
+  }
+}
+
+/* The closed control must always show its selected value clearly — this is the
+   half of the bug users hit before ever opening the menu. */
+select.input-field:not(:disabled) {
+  color: var(--text-on-input);
+}
+
+/* Native date inputs: make the picker icon visible on a dark field. */
+input[type='date'].input-field::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.6;
+  cursor: pointer;
+}
+input[type='date'].input-field::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Range input (before/after slider) — Firefox needs its own thumb rule, which
+   the original stylesheet was missing. */
+input[type='range'].compare-slider::-moz-range-thumb {
+  width: 4px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: #d4001a;
+  cursor: ew-resize;
+}
+input[type='range'].compare-slider::-moz-range-track {
+  background: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DECORATIVE LAYER SYSTEM
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Every texture below is drawn with CSS gradients or an inline SVG data URI —
+   there is not one photograph in this section. That is a deliberate
+   engineering choice, not a compromise:
+
+     • ZERO NETWORK COST. A carbon-fibre JPEG is ~200 KB and a DNS lookup; the
+       gradient version is ~400 bytes of CSS already in the stylesheet the page
+       must download anyway. The brief asks for rich visual depth AND fast
+       loads, and this is the only way to have both.
+     • RESOLUTION-INDEPENDENT. Sharp on a 5K display and on a phone, with no
+       srcset, no layout shift, and nothing to lazy-load.
+     • NO LICENSING OR PROVENANCE RISK. A generated hexagon mesh cannot be
+       mistaken for a photograph of work this business did — see the warning at
+       the top of data/media.ts.
+
+   RULES FOR EVERY LAYER IN THIS SECTION
+     1. `pointer-events: none` — decoration must never eat a click.
+     2. `aria-hidden="true"` on the element in JSX — it is not content.
+     3. Animate `transform` and `opacity` ONLY. Animating background-position,
+        filter, or box-shadow forces paint on every frame and is what makes
+        "premium" effects stutter on a mid-range phone.
+     4. The global prefers-reduced-motion rule at the top of this file already
+        collapses every animation here to 0.01ms. Nothing below needs its own
+        media query for that.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Base for any absolutely-positioned decorative layer. */
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ── Carbon fibre ──────────────────────────────────────────────────────────
+   A 2×2 twill weave. Four 45°/-45° gradients on a small tile read as woven
+   carbon at low opacity; at 100% it would look like a moiré, which is why
+   every usage keeps it under ~0.06 alpha. */
+.tex-carbon {
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.055) 0px,
+      rgba(255, 255, 255, 0.055) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.04) 0px,
+      rgba(255, 255, 255, 0.04) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.02), transparent 60%);
+  background-size: 8px 8px, 8px 8px, 100% 100%;
+}
+
+/* ── Hexagon mesh — the visual shorthand for a ceramic coating ─────────────
+   Ceramic products are marketed with hex imagery (SiO₂ lattice), so this
+   pattern does real semantic work on coating sections rather than being
+   arbitrary geometry. */
+.tex-hex {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='56' height='64' viewBox='0 0 56 64'%3e%3cpath d='M28 0L56 16v32L28 64 0 48V16z' fill='none' stroke='%23ffffff' stroke-opacity='0.055' stroke-width='1'/%3e%3c/svg%3e");
+  background-size: 56px 64px;
+}
+
+/* ── Topographic contours — reads as "Mount Olympus" without a literal peak ── */
+.tex-topo {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3e%3cg fill='none' stroke='%23ffffff' stroke-opacity='0.045' stroke-width='1'%3e%3cpath d='M-20 180q60-40 120 0t140-30'/%3e%3cpath d='M-20 150q70-50 130-10t130-40'/%3e%3cpath d='M-20 120q60-55 125-20t135-45'/%3e%3cpath d='M-20 90q70-45 120-15t140-40'/%3e%3cpath d='M-20 60q60-40 130-15t130-30'/%3e%3c/g%3e%3c/svg%3e");
+  background-size: 240px 240px;
+}
+
+/* ── Film grain ────────────────────────────────────────────────────────────
+   An SVG feTurbulence, evaluated once by the browser's own filter engine.
+   Grain is what stops large flat dark areas from banding on 8-bit panels —
+   this is the cheapest fix for the visible stepping in a full-bleed black
+   gradient. */
+.tex-noise {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3e%3cfilter id='n'%3e%3cfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3e%3c/filter%3e%3crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3e%3c/svg%3e");
+  background-size: 140px 140px;
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+}
+
+/* ── Brushed metal / marble sheen ─────────────────────────────────────────── */
+.tex-brushed {
+  background-image: repeating-linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.035) 0px,
+    rgba(255, 255, 255, 0) 2px,
+    rgba(255, 255, 255, 0) 5px,
+    rgba(255, 255, 255, 0.02) 7px
+  );
+}
+
+.tex-marble {
+  background-image:
+    radial-gradient(ellipse 70% 40% at 20% 30%, rgba(255, 255, 255, 0.05), transparent 60%),
+    radial-gradient(ellipse 50% 60% at 80% 70%, rgba(255, 255, 255, 0.035), transparent 55%),
+    repeating-linear-gradient(
+      118deg,
+      transparent 0 40px,
+      rgba(255, 255, 255, 0.022) 40px 41px,
+      transparent 41px 52px
+    );
+}
+
+/* ── Mesh gradient — an animated aurora behind dark sections ───────────────
+   Three oversized radial blobs on one element. Translating the whole element
+   is one composited layer; animating each blob's background-position would be
+   three repaints per frame. */
+.mesh-gradient {
+  background-image:
+    radial-gradient(ellipse 55% 45% at 18% 20%, rgba(212, 0, 26, 0.16), transparent 62%),
+    radial-gradient(ellipse 45% 55% at 82% 30%, rgba(70, 110, 190, 0.11), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 50% 92%, rgba(212, 0, 26, 0.09), transparent 65%);
+  will-change: transform;
+  animation: mesh-drift 26s ease-in-out infinite alternate;
+}
+
+@keyframes mesh-drift {
+  0% {
+    transform: translate3d(-2%, -1%, 0) scale(1.06);
+  }
+  100% {
+    transform: translate3d(2%, 1.5%, 0) scale(1.12);
+  }
+}
+
+/* ── Specular light sweep — the "gloss" pass over a polished panel ─────────
+   A skewed white band translated across the parent. This is the single effect
+   that most reads as "freshly coated paint", so it is used sparingly: heroes
+   and card hovers only. */
+.light-sweep::after {
+  content: '';
+  position: absolute;
+  top: -60%;
+  bottom: -60%;
+  left: -35%;
+  width: 22%;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.11),
+    rgba(255, 255, 255, 0.02),
+    transparent
+  );
+  transform: skewX(-18deg) translate3d(0, 0, 0);
+  will-change: transform;
+  animation: sweep 7.5s ease-in-out infinite;
+}
+
+@keyframes sweep {
+  0%,
+  62% {
+    transform: skewX(-18deg) translate3d(-40vw, 0, 0);
+  }
+  100% {
+    transform: skewX(-18deg) translate3d(140vw, 0, 0);
+  }
+}
+
+/* Hover-triggered variant for cards — fires once per hover, no idle animation. */
+.sweep-hover {
+  position: relative;
+  overflow: hidden;
+}
+.sweep-hover::after {
+  content: '';
+  position: absolute;
+  inset: -50% -100%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+  transform: translate3d(-60%, 0, 0) skewX(-18deg);
+  opacity: 0;
+  transition:
+    transform 0.85s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.3s ease;
+}
+.sweep-hover:hover::after,
+.sweep-hover:focus-within::after {
+  transform: translate3d(60%, 0, 0) skewX(-18deg);
+  opacity: 1;
+}
+
+/* ── Gradient border ───────────────────────────────────────────────────────
+   Painted with a masked pseudo-element rather than `border-image`, because
+   border-image cannot follow a border-radius. Two backgrounds + `xor`
+   composite punch out the middle, leaving a 1px gradient ring. */
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    140deg,
+    rgba(255, 255, 255, 0.22),
+    rgba(255, 255, 255, 0.04) 38%,
+    rgba(212, 0, 26, 0) 62%,
+    rgba(212, 0, 26, 0.42)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0.55;
+  transition: opacity 0.4s ease;
+  pointer-events: none;
+}
+.gradient-border:hover::before,
+.gradient-border:focus-within::before {
+  opacity: 1;
+}
+
+/* ── Glass surface ─────────────────────────────────────────────────────────
+   `backdrop-filter` is expensive: the compositor re-samples everything behind
+   the element. Reserved for small, non-scrolling surfaces (nav bars, badges),
+   never applied to a long scrolling list. */
+.glass {
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
+  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ── Card lift ─────────────────────────────────────────────────────────────
+   translate3d + shadow. The shadow is pre-declared at rest (transparent) so
+   the browser does not have to create a new paint layer on first hover, which
+   is what causes the one-frame jank on an otherwise smooth lift. */
+.lift {
+  transform: translate3d(0, 0, 0);
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease;
+}
+.lift:hover,
+.lift:focus-within {
+  transform: translate3d(0, -6px, 0);
+  box-shadow:
+    0 22px 48px -18px rgba(0, 0, 0, 0.85),
+    0 0 0 1px rgba(255, 255, 255, 0.07) inset;
+}
+
+/* ── Floating motes — dust, foam, or spray depending on context ────────────
+   Sized and positioned by inline style from the component so the CSS stays a
+   single rule regardless of how many are on screen. */
+.mote {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: mote-rise linear infinite;
+}
+
+@keyframes mote-rise {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.85);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--mote-drift, 14px), -120px, 0) scale(1.1);
+    opacity: 0;
+  }
+}
+
+/* ── Water ripple — marine sections ───────────────────────────────────────── */
+.ripple-layer {
+  background-image:
+    repeating-radial-gradient(
+      circle at 30% 78%,
+      rgba(255, 255, 255, 0.028) 0 1px,
+      transparent 1px 26px
+    ),
+    repeating-radial-gradient(
+      circle at 72% 88%,
+      rgba(255, 255, 255, 0.022) 0 1px,
+      transparent 1px 34px
+    );
+  will-change: transform;
+  animation: ripple-swell 15s ease-in-out infinite alternate;
+}
+
+@keyframes ripple-swell {
+  0% {
+    transform: translate3d(0, 0, 0) scaleY(1);
+  }
+  100% {
+    transform: translate3d(-1.5%, -6px, 0) scaleY(1.05);
+  }
+}
+
+/* ── Slow ambient drift, used for ghosted background photography ──────────── */
+.drift-slow {
+  will-change: transform;
+  animation: drift 34s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  0% {
+    transform: scale(1.05) translate3d(0, 0, 0);
+  }
+  100% {
+    transform: scale(1.12) translate3d(-1.5%, -1%, 0);
+  }
+}
+
+/* ── Skeleton shimmer ─────────────────────────────────────────────────────── */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.045);
+  border-radius: 3px;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translate3d(-100%, 0, 0);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translate3d(100%, 0, 0);
+  }
+}
+
+/* ── Scroll reveal ─────────────────────────────────────────────────────────
+   Driven by IntersectionObserver in components/visual/Reveal.tsx toggling
+   `data-revealed`. Done in CSS rather than with Framer Motion's `whileInView`
+   so that server-rendered sections need no JavaScript to become visible —
+   see the no-JS fallback immediately below, which is the part that matters. */
+[data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, 22px, 0);
+  transition:
+    opacity 0.75s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+[data-reveal='left'] {
+  transform: translate3d(-26px, 0, 0);
+}
+[data-reveal='right'] {
+  transform: translate3d(26px, 0, 0);
+}
+[data-reveal='scale'] {
+  transform: scale(0.965);
+}
+[data-revealed='true'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* If JavaScript never runs, everything must still be visible. Without this a
+   scripting failure would leave the entire page blank at opacity 0 — the
+   classic way a scroll-animation library takes a site down. */
+@media (scripting: none) {
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Reduced motion: show content instantly, but do NOT hide it. */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .mesh-gradient,
+  .ripple-layer,
+  .drift-slow,
+  .light-sweep::after,
+  .mote {
+    animation: none;
+  }
+  .light-sweep::after,
+  .mote {
+    display: none;
+  }
+}
+
+/* ── Image reveal ──────────────────────────────────────────────────────────
+   A clip-path wipe over the loaded image rather than a fade from a grey box:
+   the image is already decoded, so the wipe never shows a flash of empty
+   space and cannot shift layout. */
+.img-reveal {
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-revealed='true'] .img-reveal,
+.img-reveal[data-revealed='true'] {
+  clip-path: inset(0 0 0 0);
+}
+
+/* ── Spotlight — follows the pointer on desktop ────────────────────────────
+   Position comes from two CSS custom properties set by a rAF-throttled
+   pointermove handler. Updating a custom property that only feeds a gradient
+   is compositor-friendly; setting `left`/`top` would relayout on every mouse
+   move. */
+.spotlight {
+  background: radial-gradient(
+    460px circle at var(--mx, 50%) var(--my, 50%),
+    rgba(212, 0, 26, 0.09),
+    transparent 62%
+  );
+  transition: opacity 0.5s ease;
+}
+
+/* Touch devices have no hover and no pointer to follow — do not pay for it. */
+@media (hover: none) {
+  .spotlight {
+    display: none;
+  }
+}
+
+/* ── Section divider with a light bloom in the centre ─────────────────────── */
+.hairline-glow {
+  height: 1px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.13) 22%,
+    rgba(212, 0, 26, 0.5) 50%,
+    rgba(255, 255, 255, 0.13) 78%,
+    transparent
+  );
+}
+
+/* ── Text treatments ──────────────────────────────────────────────────────── */
+.text-gradient {
+  background: linear-gradient(180deg, #ffffff 0%, #ffffff 45%, rgba(255, 255, 255, 0.62) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* Fallback for engines that ignore background-clip:text — without this the
+     headline renders fully transparent, i.e. invisible. */
+  -webkit-text-fill-color: transparent;
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .text-gradient {
+    color: #ffffff;
+    -webkit-text-fill-color: #ffffff;
+  }
+}

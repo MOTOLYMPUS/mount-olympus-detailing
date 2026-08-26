@@ -1,0 +1,38 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# Import this repo as a Blueprint and Render provisions the web service AND the
+# persistent disk in one step. The disk is the part people forget; declaring it
+# here means the database and uploads survive every deploy.
+#
+# Secrets are marked `sync: false` — Render will prompt for them in the
+# dashboard rather than reading them from this file, so nothing sensitive is
+# committed.
+services:
+  - type: web
+    name: mount-olympus-detailing
+    runtime: docker
+    plan: starter # a paid plan is required for a persistent disk
+    healthCheckPath: /
+    autoDeploy: true # push to the connected branch → redeploy
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_PATH
+        value: /data/data.sqlite
+      - key: UPLOAD_DIR
+        value: /data/uploads
+      - key: MAIL_FROM
+        value: Mount Olympus Detailing <onboarding@resend.dev>
+      - key: BUSINESS_EMAIL
+        value: luis.rodriguez621@outlook.com
+      # ── Set these in the Render dashboard (never committed) ──────────────────
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: IP_HASH_SALT
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: CRON_SECRET
+        sync: false

@@ -1,0 +1,24 @@
+# Never ship these into the image.
+node_modules
+.next
+.next-*
+.verify-build
+out
+
+# Local data + secrets — must come from the host's volume and env, never baked in.
+data.sqlite
+data.sqlite-shm
+data.sqlite-wal
+*.sqlite
+uploads
+.env.local
+.env*.local
+
+# Dev noise
+.git
+.gitignore
+*.log
+build-verify.log
+.DS_Store
+npm-debug.log*
+content/drafts
