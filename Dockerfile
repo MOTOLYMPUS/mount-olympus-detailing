@@ -38,7 +38,6 @@ RUN npm run build
 FROM node:24-slim AS run
 WORKDIR /app
 ENV NODE_ENV=production
-ENV PORT=3000
 
 # Only what the server needs to run.
 COPY --from=build /app/.next ./.next
@@ -55,4 +54,10 @@ ENV UPLOAD_DIR=/data/uploads
 RUN mkdir -p /data/uploads
 
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+
+# Bind to 0.0.0.0 (mandatory inside a container — the default can be localhost,
+# which the platform's health check cannot reach) on the port the host injects
+# via $PORT, falling back to 3000 for local `docker run`. This is the fix for a
+# build that succeeds but whose health check times out with "service
+# unavailable": the app was up, just not reachable on the routed port/host.
+CMD ["sh", "-c", "node node_modules/next/dist/bin/next start -H 0.0.0.0 -p ${PORT:-3000}"]
