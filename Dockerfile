@@ -17,7 +17,11 @@
 FROM node:24-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# `--include=dev` is not optional: `next build` needs the devDependencies
+# (typescript, tailwindcss, postcss, eslint-config-next). Hosts like Railway
+# set NODE_ENV=production during the build, which would otherwise make `npm ci`
+# silently drop them and the build would fail on a missing compiler/plugin.
+RUN npm ci --include=dev
 
 # ── build ────────────────────────────────────────────────────────────────────
 FROM node:24-slim AS build
