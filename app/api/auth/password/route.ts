@@ -144,7 +144,7 @@ export async function PUT(req: NextRequest) {
 // ── Change while signed in ───────────────────────────────────────────────────
 
 export async function PATCH(req: NextRequest) {
-  const user = getSessionUser();
+  const user = await getSessionUser();
   if (!user) return fail('Please sign in.', 401);
 
   const ipHash = hashIp(clientIp(req.headers));
@@ -196,6 +196,6 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function GET() {
-  const user = getSessionUser();
+  const user = await getSessionUser();
   return NextResponse.json({ ok: true, signedIn: !!user, userId: user?.id ?? null });
 }

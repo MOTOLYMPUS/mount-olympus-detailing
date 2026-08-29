@@ -8,20 +8,19 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Book a service' };
 
-export default function BookPage({
+export default async function BookPage({
   searchParams,
 }: {
-  searchParams: { vehicle?: string; service?: string };
+  searchParams: Promise<{ vehicle?: string; service?: string }>;
 }) {
-  const user = requirePage('/app/book');
+  const user = await requirePage('/app/book');
   const vehicles = listVehicles(user.id);
+  const sp = await searchParams;
 
   // The vehicle and service ids arrive from a dashboard link, so they are
   // hints, not commands — BookingFlow only honours one that is actually in the
   // customer's own list, and the API re-validates ownership regardless.
-  const preselected = vehicles.some((v) => v.id === searchParams.vehicle)
-    ? searchParams.vehicle
-    : undefined;
+  const preselected = vehicles.some((v) => v.id === sp.vehicle) ? sp.vehicle : undefined;
 
   return (
     <div>
@@ -36,7 +35,7 @@ export default function BookPage({
           vehicles={vehicles}
           defaultAddress={user.address}
           preselectedVehicleId={preselected}
-          preselectedServiceId={searchParams.service}
+          preselectedServiceId={sp.service}
         />
       </Suspense>
     </div>

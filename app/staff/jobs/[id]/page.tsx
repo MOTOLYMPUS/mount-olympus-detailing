@@ -28,11 +28,11 @@ import { getAddOn } from '@/data/pricing';
 
 export const dynamic = 'force-dynamic';
 
-export default function JobRunnerPage({ params }: { params: { id: string } }) {
-  const user = requireStaffPage(`/staff/jobs/${params.id}`);
+export default async function JobRunnerPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireStaffPage(`/staff/jobs/${(await params).id}`);
   const { timezone } = getSchedulingConfig();
 
-  const job = getJob(params.id);
+  const job = getJob((await params).id);
   if (!job || !canViewJob(user, job)) notFound();
 
   const appointment = getAppointmentView(job.appointmentId);

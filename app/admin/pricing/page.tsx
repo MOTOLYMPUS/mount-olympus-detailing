@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // /admin/pricing — edit the price of any service, live.
 //
-// requireRolePage('admin'). Prices decide revenue and are quoted straight to
+// await requireRolePage('admin'). Prices decide revenue and are quoted straight to
 // customers, so this is admin+, not manager.
 //
 // The page builds the whole matrix on the server (code defaults + current
@@ -58,8 +58,8 @@ function buildIndustry(industry: Industry, overrides: ReturnType<typeof getPrice
   };
 }
 
-export default function AdminPricingPage() {
-  requireRolePage('admin', '/admin/pricing');
+export default async function AdminPricingPage() {
+  await requireRolePage('admin', '/admin/pricing');
 
   const overrides = getPriceOverrides();
   const data = INDUSTRIES.map((i) => buildIndustry(i, overrides));

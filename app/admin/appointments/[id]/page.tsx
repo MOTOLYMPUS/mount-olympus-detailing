@@ -34,11 +34,11 @@ import { getAddOn, getService } from '@/data/pricing';
 
 export const dynamic = 'force-dynamic';
 
-export default function AdminAppointmentPage({ params }: { params: { id: string } }) {
-  requireRolePage('manager', `/admin/appointments/${params.id}`);
+export default async function AdminAppointmentPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireRolePage('manager', `/admin/appointments/${(await params).id}`);
   const { timezone } = getSchedulingConfig();
 
-  const appointment = getAppointmentView(params.id);
+  const appointment = getAppointmentView((await params).id);
   if (!appointment) notFound();
 
   // Read-only here: `jobFor()` would CREATE a job row as a side effect of

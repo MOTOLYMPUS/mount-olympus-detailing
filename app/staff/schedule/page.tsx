@@ -25,8 +25,8 @@ export const dynamic = 'force-dynamic';
 
 const DAYS = 14;
 
-export default function StaffSchedulePage() {
-  const user = requireStaffPage('/staff/schedule');
+export default async function StaffSchedulePage() {
+  const user = await requireStaffPage('/staff/schedule');
   const { timezone } = getSchedulingConfig();
 
   const today = todayIso(timezone);

@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function RegisterPage() {
-  redirectIfSignedIn();
+export default async function RegisterPage() {
+  await redirectIfSignedIn();
 
   return (
     <>

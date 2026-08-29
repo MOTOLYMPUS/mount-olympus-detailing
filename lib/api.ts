@@ -78,20 +78,25 @@ type PublicRouteHandler<TBody> = (
   ctx: PublicHandlerContext<TBody>
 ) => Promise<NextResponse> | NextResponse;
 
-/** Next.js passes `{ params }` as the second argument to a route handler. */
-type NextRouteArgs = { params?: Record<string, string> };
+/** Next.js passes `{ params }` as the second argument to a route handler.
+ *  Next 15: `params` is a Promise (of `{}`, `{id}`, or a catch-all `string[]`
+ *  depending on the route), resolved once inside the wrapper below so every
+ *  handler still receives a plain object. Typed as `Promise<any>` because this
+ *  one wrapper serves every route shape; the per-route generated types remain
+ *  the real check. */
+type NextRouteArgs = { params: Promise<any> };
 
 export function withAuth<TBody = any>(
   requirement: Requirement,
   handler: RouteHandler<TBody>,
   options: RouteOptions = {}
 ) {
-  return async (req: NextRequest, args: NextRouteArgs = {}): Promise<NextResponse> => {
+  return async (req: NextRequest, args: NextRouteArgs): Promise<NextResponse> => {
     const ipHash = hashIp(clientIp(req.headers));
 
     let user: User | null;
     try {
-      user = getSessionUser();
+      user = await getSessionUser();
     } catch (e) {
       console.error('[api] session lookup failed', e);
       return fail('Authentication is temporarily unavailable.', 503);
@@ -118,7 +123,7 @@ export function withAuth<TBody = any>(
         req,
         user,
         body: parsed.body as TBody,
-        params: args.params ?? {},
+        params: (await args.params) ?? {},
         ipHash,
         query: req.nextUrl.searchParams,
       });
@@ -136,11 +141,11 @@ export function withOptionalAuth<TBody = any>(
   handler: PublicRouteHandler<TBody>,
   options: RouteOptions = {}
 ) {
-  return async (req: NextRequest, args: NextRouteArgs = {}): Promise<NextResponse> => {
+  return async (req: NextRequest, args: NextRouteArgs): Promise<NextResponse> => {
     const ipHash = hashIp(clientIp(req.headers));
     let user: User | null = null;
     try {
-      user = getSessionUser();
+      user = await getSessionUser();
     } catch {
       user = null;
     }
@@ -163,7 +168,7 @@ export function withOptionalAuth<TBody = any>(
         req,
         user,
         body: parsed.body as TBody,
-        params: args.params ?? {},
+        params: (await args.params) ?? {},
         ipHash,
         query: req.nextUrl.searchParams,
       });

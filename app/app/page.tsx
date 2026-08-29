@@ -51,8 +51,8 @@ import { Counter } from '@/components/visual/Effects';
 
 export const dynamic = 'force-dynamic';
 
-export default function DashboardPage() {
-  const user = requirePage('/app');
+export default async function DashboardPage() {
+  const user = await requirePage('/app');
 
   // Staff landing on /app get their own home rather than a customer dashboard
   // that would be empty for them.

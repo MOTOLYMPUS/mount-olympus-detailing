@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // /admin/settings — business configuration.
 //
-// requireRolePage('admin'). These fields decide when the business can be
+// await requireRolePage('admin'). These fields decide when the business can be
 // booked and what a member pays; a manager running today's schedule has no
 // reason to be able to close the calendar for the next three months.
 //
@@ -23,8 +23,8 @@ import { listPlans } from '@/lib/repo/loyalty';
 
 export const dynamic = 'force-dynamic';
 
-export default function AdminSettingsPage() {
-  requireRolePage('admin', '/admin/settings');
+export default async function AdminSettingsPage() {
+  await requireRolePage('admin', '/admin/settings');
 
   const config = getSchedulingConfig();
 

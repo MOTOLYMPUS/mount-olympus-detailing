@@ -18,15 +18,15 @@ import Reveal from '@/components/visual/Reveal';
 
 export const dynamic = 'force-dynamic';
 
-export default function AppointmentPage({
+export default async function AppointmentPage({
   params,
   searchParams,
 }: {
-  params: { id: string };
-  searchParams: { new?: string };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ new?: string }>;
 }) {
-  const user = requirePage(`/app/appointments/${params.id}`);
-  const appointment = getAppointmentView(params.id);
+  const user = await requirePage(`/app/appointments/${(await params).id}`);
+  const appointment = getAppointmentView((await params).id);
 
   if (!appointment || !canViewAppointment(user, appointment)) notFound();
 
@@ -50,7 +50,7 @@ export default function AppointmentPage({
         action={<StatusBadge status={appointment.status} />}
       />
 
-      {searchParams.new === '1' && (
+      {(await searchParams).new === '1' && (
         <Alert tone="positive" title="You are booked in">
           A confirmation is on its way to your email. We will send a reminder before the day.
         </Alert>

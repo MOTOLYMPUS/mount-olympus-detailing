@@ -77,16 +77,17 @@ function revenueWithTrend(period: ReturnType<typeof dayPeriod>, tz: string) {
   return { ...current, trend: pctChange(current.revenue, previous.revenue) };
 }
 
-export default function AdminDashboardPage({
+export default async function AdminDashboardPage({
   searchParams,
 }: {
-  searchParams?: { period?: string };
+  searchParams?: Promise<{ period?: string }>;
 }) {
-  const user = requireRolePage('manager', '/admin');
+  const user = await requireRolePage('manager', '/admin');
   const { timezone } = getSchedulingConfig();
   const today = todayIso(timezone);
+  const sp = (await searchParams) ?? {};
 
-  const periodKey: PeriodKey = isPeriodKey(searchParams?.period) ? searchParams.period : '30d';
+  const periodKey: PeriodKey = isPeriodKey(sp.period) ? sp.period : '30d';
   const period = resolvePeriod(periodKey, timezone);
 
   // ── Headline revenue ───────────────────────────────────────────────────────

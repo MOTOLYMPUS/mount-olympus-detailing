@@ -2,7 +2,7 @@
 // Admin / business layout — everything under /admin.
 //
 // The floor is 'manager'. The two screens that need more (settings, employees)
-// call `requireRolePage('admin')` themselves — a layout cannot express "admin
+// call `await requireRolePage('admin')` themselves — a layout cannot express "admin
 // for these two children, manager for the rest", and pushing the whole section
 // to admin would lock a manager out of the schedule they are employed to run.
 //
@@ -25,8 +25,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const user = requireRolePage('manager', '/admin');
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const user = await requireRolePage('manager', '/admin');
 
   return (
     <AppShell

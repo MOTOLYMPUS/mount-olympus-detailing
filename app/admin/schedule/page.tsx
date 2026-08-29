@@ -43,24 +43,23 @@ interface Search {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export default function AdminSchedulePage({ searchParams }: { searchParams?: Search }) {
-  requireRolePage('manager', '/admin/schedule');
+export default async function AdminSchedulePage({ searchParams }: { searchParams?: Promise<Search> }) {
+  await requireRolePage('manager', '/admin/schedule');
   const { timezone } = getSchedulingConfig();
   const today = todayIso(timezone);
+  const sp = (await searchParams) ?? {};
 
   // Defaults: today through four weeks out — the window a manager actually
   // works in. Past bookings are one date change away, not a separate screen.
-  const fromDate = ISO_DATE.test(searchParams?.from ?? '') ? searchParams!.from! : today;
-  const toDate = ISO_DATE.test(searchParams?.to ?? '') ? searchParams!.to! : addDaysIso(today, 28);
+  const fromDate = ISO_DATE.test(sp.from ?? '') ? sp.from! : today;
+  const toDate = ISO_DATE.test(sp.to ?? '') ? sp.to! : addDaysIso(today, 28);
 
-  const status = (APPOINTMENT_STATUSES as readonly string[]).includes(searchParams?.status ?? '')
-    ? (searchParams!.status as AppointmentStatus)
+  const status = (APPOINTMENT_STATUSES as readonly string[]).includes(sp.status ?? '')
+    ? (sp.status as AppointmentStatus)
     : undefined;
 
   const technicians = listUsers({ roles: STAFF_ROLES, activeOnly: true, limit: 200 });
-  const employeeId = technicians.some((t) => t.id === searchParams?.employee)
-    ? searchParams!.employee
-    : undefined;
+  const employeeId = technicians.some((t) => t.id === sp.employee) ? sp.employee : undefined;
 
   const appointments = listAppointments({
     // The end date is inclusive to a human, so the query runs to the following
@@ -69,7 +68,7 @@ export default function AdminSchedulePage({ searchParams }: { searchParams?: Sea
     to: dateAtMinutes(addDaysIso(toDate, 1), 0, timezone).toISOString(),
     statuses: status ? [status] : undefined,
     employeeId,
-    search: searchParams?.q || undefined,
+    search: sp.q || undefined,
     direction: 'all',
     limit: 500,
   })
@@ -142,7 +141,7 @@ export default function AdminSchedulePage({ searchParams }: { searchParams?: Sea
             <input
               id="q"
               name="q"
-              defaultValue={searchParams?.q ?? ''}
+              defaultValue={(await searchParams)?.q ?? ''}
               placeholder="Name, email, reference"
               className="input-field"
             />

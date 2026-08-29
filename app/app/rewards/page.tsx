@@ -35,8 +35,8 @@ const TIER_LABEL: Record<string, string> = {
   platinum: 'Platinum',
 };
 
-export default function RewardsPage() {
-  const user = requirePage('/app/rewards');
+export default async function RewardsPage() {
+  const user = await requirePage('/app/rewards');
 
   // Idempotent — a customer who registered before the programme existed gets an
   // account on first visit rather than an empty screen.

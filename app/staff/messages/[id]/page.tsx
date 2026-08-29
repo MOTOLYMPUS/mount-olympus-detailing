@@ -30,10 +30,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function ThreadPage({ params }: { params: { id: string } }) {
-  const user = requireStaffPage(`/staff/messages/${params.id}`);
+export default async function ThreadPage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requireStaffPage(`/staff/messages/${(await params).id}`);
 
-  const conversation = getConversation(params.id);
+  const conversation = getConversation((await params).id);
   if (!conversation || !isMember(conversation.id, user.id)) notFound();
 
   const ids = memberIds(conversation.id);

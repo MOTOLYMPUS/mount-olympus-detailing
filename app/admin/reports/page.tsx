@@ -69,22 +69,19 @@ const REPORTS = [
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-export default function AdminReportsPage({
+export default async function AdminReportsPage({
   searchParams,
 }: {
-  searchParams?: { type?: string; from?: string; to?: string };
+  searchParams?: Promise<{ type?: string; from?: string; to?: string }>;
 }) {
-  requireRolePage('manager', '/admin/reports');
+  await requireRolePage('manager', '/admin/reports');
   const { timezone } = getSchedulingConfig();
   const today = todayIso(timezone);
+  const sp = (await searchParams) ?? {};
 
-  const type = REPORTS.some((r) => r.value === searchParams?.type)
-    ? searchParams!.type!
-    : 'revenue';
-  const fromDate = ISO_DATE.test(searchParams?.from ?? '')
-    ? searchParams!.from!
-    : addDaysIso(today, -29);
-  const toDate = ISO_DATE.test(searchParams?.to ?? '') ? searchParams!.to! : today;
+  const type = REPORTS.some((r) => r.value === sp.type) ? sp.type! : 'revenue';
+  const fromDate = ISO_DATE.test(sp.from ?? '') ? sp.from! : addDaysIso(today, -29);
+  const toDate = ISO_DATE.test(sp.to ?? '') ? sp.to! : today;
 
   const from = dateAtMinutes(fromDate, 0, timezone).toISOString();
   const to = dateAtMinutes(addDaysIso(toDate, 1), 0, timezone).toISOString();

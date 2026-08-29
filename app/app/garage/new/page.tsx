@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Add a vehicle' };
 
-export default function NewVehiclePage() {
-  requirePage('/app/garage/new');
+export default async function NewVehiclePage() {
+  await requirePage('/app/garage/new');
 
   return (
     <div className="max-w-3xl">

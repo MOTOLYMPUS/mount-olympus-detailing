@@ -26,16 +26,16 @@ export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 100;
 
-export default function AdminCustomersPage({
+export default async function AdminCustomersPage({
   searchParams,
 }: {
-  searchParams?: { q?: string; page?: string };
+  searchParams?: Promise<{ q?: string; page?: string }>;
 }) {
-  requireRolePage('manager', '/admin/customers');
+  await requireRolePage('manager', '/admin/customers');
   const { timezone } = getSchedulingConfig();
 
-  const query = (searchParams?.q ?? '').trim();
-  const page = Math.max(0, Number(searchParams?.page) || 0);
+  const query = ((await searchParams)?.q ?? '').trim();
+  const page = Math.max(0, Number((await searchParams)?.page) || 0);
 
   const customers = listUsers({
     roles: ['customer'],

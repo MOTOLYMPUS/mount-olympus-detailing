@@ -33,8 +33,8 @@ function whenLabel(iso: string): string {
   return new Date(iso).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
-export default function PaymentsPage() {
-  const user = requirePage('/app/payments');
+export default async function PaymentsPage() {
+  const user = await requirePage('/app/payments');
 
   const payments = listPayments({ userId: user.id, limit: 100 });
   const invoices = listInvoices({ userId: user.id, limit: 50 });

@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // /admin/employees — the staff list.
 //
-// requireRolePage('admin'), not 'manager'. Hiring, firing and pay are not
+// await requireRolePage('admin'), not 'manager'. Hiring, firing and pay are not
 // scheduling decisions, and a manager who could edit roles could promote
 // themselves the moment `assignableRoles` was ever loosened.
 //
@@ -25,8 +25,8 @@ import { formatCurrency } from '@/lib/pricing';
 
 export const dynamic = 'force-dynamic';
 
-export default function AdminEmployeesPage() {
-  const user = requireRolePage('admin', '/admin/employees');
+export default async function AdminEmployeesPage() {
+  const user = await requireRolePage('admin', '/admin/employees');
   const { timezone } = getSchedulingConfig();
 
   // Inactive staff are INCLUDED. A list that hides them makes reactivating

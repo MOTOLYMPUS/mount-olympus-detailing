@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Notifications' };
 
-export default function NotificationsPage() {
-  const user = requirePage('/app/notifications');
+export default async function NotificationsPage() {
+  const user = await requirePage('/app/notifications');
 
   // Read the list BEFORE marking it read, so the "new" highlight survives this
   // render — otherwise opening the page would clear the very indicator that

@@ -10,8 +10,8 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'Profile & settings' };
 
-export default function ProfilePage() {
-  const user = requirePage('/app/profile');
+export default async function ProfilePage() {
+  const user = await requirePage('/app/profile');
 
   return (
     <div className="max-w-2xl space-y-8">

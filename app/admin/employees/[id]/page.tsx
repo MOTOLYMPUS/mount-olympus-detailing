@@ -38,11 +38,11 @@ import { getService } from '@/data/pricing';
 
 export const dynamic = 'force-dynamic';
 
-export default function AdminEmployeePage({ params }: { params: { id: string } }) {
-  const actor = requireRolePage('admin', `/admin/employees/${params.id}`);
+export default async function AdminEmployeePage({ params }: { params: Promise<{ id: string }> }) {
+  const actor = await requireRolePage('admin', `/admin/employees/${(await params).id}`);
   const { timezone } = getSchedulingConfig();
 
-  const employee = getUser(params.id);
+  const employee = getUser((await params).id);
   if (!employee || !isStaff(employee.role)) notFound();
 
   // The rank rule, mirrored from app/api/admin/employees/[id]/route.ts. Strictly

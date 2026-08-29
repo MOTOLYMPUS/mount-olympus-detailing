@@ -22,7 +22,7 @@ const FOCUSABLE = [
 export function useDialog(
   open: boolean,
   onClose: () => void,
-  containerRef: RefObject<HTMLElement>
+  containerRef: RefObject<HTMLElement | null>
 ) {
   const restoreTo = useRef<HTMLElement | null>(null);
 

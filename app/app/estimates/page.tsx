@@ -11,8 +11,8 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'My quotes' };
 
-export default function EstimatesPage() {
-  const user = requirePage('/app/estimates');
+export default async function EstimatesPage() {
+  const user = await requirePage('/app/estimates');
 
   // Matched on email, so a quote requested from the public site before this
   // person had an account still shows up here once they register.

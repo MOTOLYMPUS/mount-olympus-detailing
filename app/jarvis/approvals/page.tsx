@@ -11,8 +11,8 @@ import { relativeTime } from '@/lib/timezone';
 
 export const dynamic = 'force-dynamic';
 
-export default function ApprovalsPage() {
-  const user = requireRolePage('manager', '/jarvis/approvals');
+export default async function ApprovalsPage() {
+  const user = await requireRolePage('manager', '/jarvis/approvals');
 
   const pending = listApprovals({ status: 'pending', limit: 50 });
   const recent = listApprovals({ limit: 60 }).filter((a) => a.status !== 'pending').slice(0, 20);

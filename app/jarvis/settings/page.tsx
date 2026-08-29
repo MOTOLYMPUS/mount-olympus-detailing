@@ -18,8 +18,8 @@ import { cronSecret } from '@/lib/jarvis/config';
 
 export const dynamic = 'force-dynamic';
 
-export default function JarvisSettingsPage() {
-  requireRolePage('owner', '/jarvis/settings');
+export default async function JarvisSettingsPage() {
+  await requireRolePage('owner', '/jarvis/settings');
   ensureAgentsRegistered();
 
   const policy = getPolicy();

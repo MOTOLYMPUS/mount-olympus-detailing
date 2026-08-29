@@ -11,8 +11,8 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'My bookings' };
 
-export default function AppointmentsPage() {
-  const user = requirePage('/app/appointments');
+export default async function AppointmentsPage() {
+  const user = await requirePage('/app/appointments');
   const tz = getSchedulingConfig().timezone;
 
   const upcoming = listAppointments({

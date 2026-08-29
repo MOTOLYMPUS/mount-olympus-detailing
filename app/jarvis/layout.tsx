@@ -31,8 +31,8 @@ const TABS = [
   { href: '/jarvis/settings', label: 'Settings' },
 ];
 
-export default function JarvisLayout({ children }: { children: React.ReactNode }) {
-  const user = requireRolePage('manager', '/jarvis');
+export default async function JarvisLayout({ children }: { children: React.ReactNode }) {
+  const user = await requireRolePage('manager', '/jarvis');
   const pending = pendingCount();
 
   return (

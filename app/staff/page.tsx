@@ -27,8 +27,8 @@ import { formatCurrency, formatHours } from '@/lib/pricing';
 
 export const dynamic = 'force-dynamic';
 
-export default function StaffTodayPage() {
-  const user = requireStaffPage('/staff');
+export default async function StaffTodayPage() {
+  const user = await requireStaffPage('/staff');
   const { timezone } = getSchedulingConfig();
 
   const today = todayIso(timezone);

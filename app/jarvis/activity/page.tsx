@@ -27,10 +27,10 @@ const FILTERS: { key: string; label: string }[] = [
   { key: 'failed', label: 'Failed' },
 ];
 
-export default function ActivityPage({ searchParams }: { searchParams?: { status?: string } }) {
-  const user = requireRolePage('manager', '/jarvis/activity');
+export default async function ActivityPage({ searchParams }: { searchParams?: Promise<{ status?: string }> }) {
+  const user = await requireRolePage('manager', '/jarvis/activity');
 
-  const filter = searchParams?.status ?? 'all';
+  const filter = (await searchParams)?.status ?? 'all';
   const status = (TASK_STATUSES as readonly string[]).includes(filter)
     ? (filter as TaskStatus)
     : undefined;

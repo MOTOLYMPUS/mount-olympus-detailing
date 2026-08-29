@@ -42,15 +42,16 @@ const FILTERS = [
   { key: 'all', label: 'All', statuses: null as string[] | null },
 ];
 
-export default function AdminEstimatesPage({
+export default async function AdminEstimatesPage({
   searchParams,
 }: {
-  searchParams?: { status?: string };
+  searchParams?: Promise<{ status?: string }>;
 }) {
-  requireRolePage('manager', '/admin/estimates');
+  await requireRolePage('manager', '/admin/estimates');
   const { timezone } = getSchedulingConfig();
+  const sp = (await searchParams) ?? {};
 
-  const filter = FILTERS.find((f) => f.key === searchParams?.status) ?? FILTERS[0];
+  const filter = FILTERS.find((f) => f.key === sp.status) ?? FILTERS[0];
 
   const all = listEstimateRequests(500);
   const estimates = filter.statuses ? all.filter((e) => filter.statuses!.includes(e.status)) : all;

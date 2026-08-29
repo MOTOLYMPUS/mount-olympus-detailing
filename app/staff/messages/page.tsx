@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // /staff/messages — the team inbox.
 //
-// requireStaffPage() runs here rather than relying on a section layout, so this
+// await requireStaffPage() runs here rather than relying on a section layout, so this
 // screen is protected on its own terms. Data is read server-side for first
 // paint; the client component takes over polling from there.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,8 +22,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function StaffMessagesPage() {
-  const user = requireStaffPage('/staff/messages');
+export default async function StaffMessagesPage() {
+  const user = await requireStaffPage('/staff/messages');
 
   // Only staff can ever be a messaging target — customers must not appear here.
   const staff = listUsers({ roles: [...STAFF_ROLES], activeOnly: true, limit: 200 })

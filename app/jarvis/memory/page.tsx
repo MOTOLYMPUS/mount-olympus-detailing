@@ -10,19 +10,20 @@ import { recentMemory, searchMemory, isMemoryKind, seedStarterMemory } from '@/l
 
 export const dynamic = 'force-dynamic';
 
-export default function MemoryPage({
+export default async function MemoryPage({
   searchParams,
 }: {
-  searchParams?: { q?: string; kind?: string };
+  searchParams?: Promise<{ q?: string; kind?: string }>;
 }) {
-  const user = requireRolePage('manager', '/jarvis/memory');
+  const user = await requireRolePage('manager', '/jarvis/memory');
 
   // First visit populates the starter memories, so the screen explains itself
   // instead of being empty. No-op once anything exists.
   seedStarterMemory();
 
-  const query = searchParams?.q?.trim();
-  const kind = isMemoryKind(searchParams?.kind) ? searchParams.kind : undefined;
+  const sp = (await searchParams) ?? {};
+  const query = sp.q?.trim();
+  const kind = isMemoryKind(sp.kind) ? sp.kind : undefined;
 
   const memories = query
     ? searchMemory(query, { kind, limit: 50 })

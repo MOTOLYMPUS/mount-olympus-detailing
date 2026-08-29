@@ -183,15 +183,16 @@ export function clearSessionCookie(res: NextResponse): NextResponse {
  * The current user, or null. Safe to call from server components, route
  * handlers, and server actions.
  */
-export function getSessionUser(): User | null {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+export async function getSessionUser(): Promise<User | null> {
+  // Next 15: cookies() is async.
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const found = findSessionUser(hashToken(token));
   return found?.user ?? null;
 }
 
-export function endCurrentSession(): void {
-  const token = cookies().get(SESSION_COOKIE)?.value;
+export async function endCurrentSession(): Promise<void> {
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
   if (token) revokeSession(hashToken(token));
 }
 
@@ -208,8 +209,8 @@ export async function changePassword(userId: string, newPassword: string): Promi
 
 // ── Convenience guards used by server components ─────────────────────────────
 
-export function requireUser(): User {
-  const user = getSessionUser();
+export async function requireUser(): Promise<User> {
+  const user = await getSessionUser();
   if (!user) throw new AuthError('unauthenticated');
   return user;
 }

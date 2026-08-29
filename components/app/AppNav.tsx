@@ -71,6 +71,9 @@ const ICONS = {
   calendar: icon('M8 2v4M16 2v4M3 9h18M4 6h16v15H4z'),
   garage: icon('M3 21V9l9-6 9 6v12M7 21v-6h10v6'),
   chat: icon('M21 12a8 8 0 0 1-11.6 7.1L3 21l1.9-6.4A8 8 0 1 1 21 12z'),
+  // Lightbulb — the advisor gives tips and suggestions, so a bulb reads truer
+  // than a speech bubble now that there is no back-and-forth chat behind it.
+  advice: icon('M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1.1 1.3 1.3 2.2h4.6c.2-.9.7-1.7 1.3-2.2A6 6 0 0 0 12 3z'),
   user: icon('M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'),
   clipboard: icon('M9 3h6v3H9zM7 5H5v16h14V5h-2'),
   chart: icon('M4 20V10M10 20V4M16 20v-7M22 20H2'),
@@ -83,7 +86,7 @@ export function navFor(role: Role, counts: { messages?: number } = {}): NavItem[
     { href: '/app', label: 'Home', icon: ICONS.home },
     { href: '/app/appointments', label: 'Bookings', icon: ICONS.calendar },
     { href: '/app/garage', label: 'Garage', icon: ICONS.garage },
-    { href: '/app/assistant', label: 'Assistant', icon: ICONS.chat },
+    { href: '/app/assistant', label: 'Advice', icon: ICONS.advice },
     { href: '/app/profile', label: 'Profile', icon: ICONS.user },
   ];
 

@@ -49,9 +49,9 @@ function hasSecret(req: NextRequest): boolean {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-function hasAdminSession(): boolean {
+async function hasAdminSession(): Promise<boolean> {
   try {
-    const user = getSessionUser();
+    const user = await getSessionUser();
     return !!user && atLeast(user.role, 'admin');
   } catch {
     return false;
@@ -59,7 +59,7 @@ function hasAdminSession(): boolean {
 }
 
 export async function POST(req: NextRequest) {
-  if (!hasSecret(req) && !hasAdminSession()) {
+  if (!hasSecret(req) && !(await hasAdminSession())) {
     return NextResponse.json({ ok: false, error: 'Not authorised.' }, { status: 401 });
   }
 

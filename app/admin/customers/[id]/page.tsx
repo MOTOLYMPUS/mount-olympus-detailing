@@ -41,11 +41,11 @@ import { sizeLabel } from '@/lib/industries';
 
 export const dynamic = 'force-dynamic';
 
-export default function AdminCustomerPage({ params }: { params: { id: string } }) {
-  requireRolePage('manager', `/admin/customers/${params.id}`);
+export default async function AdminCustomerPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireRolePage('manager', `/admin/customers/${(await params).id}`);
   const { timezone } = getSchedulingConfig();
 
-  const customer = getUser(params.id);
+  const customer = getUser((await params).id);
   // Staff records are managed on /admin/employees, which enforces the rank
   // rules. Serving one here would route around them.
   if (!customer || customer.role !== 'customer') notFound();

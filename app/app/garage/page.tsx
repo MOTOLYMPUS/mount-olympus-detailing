@@ -12,8 +12,8 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = { title: 'My garage' };
 
-export default function GaragePage() {
-  const user = requirePage('/app/garage');
+export default async function GaragePage() {
+  const user = await requirePage('/app/garage');
   const tz = getSchedulingConfig().timezone;
 
   const vehicles = listVehicles(user.id);

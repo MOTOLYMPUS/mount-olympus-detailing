@@ -28,17 +28,18 @@ const FILTERS: { key: string; label: string; statuses?: JobStatus[] }[] = [
   { key: 'all', label: 'All' },
 ];
 
-export default function StaffJobsPage({
+export default async function StaffJobsPage({
   searchParams,
 }: {
-  searchParams?: { status?: string };
+  searchParams?: Promise<{ status?: string }>;
 }) {
-  const user = requireStaffPage('/staff/jobs');
+  const user = await requireStaffPage('/staff/jobs');
   const { timezone } = getSchedulingConfig();
 
   // Unknown values fall back to 'active' rather than erroring — a mistyped URL
   // should show the useful default, not a stack trace.
-  const active = FILTERS.find((f) => f.key === searchParams?.status) ?? FILTERS[0];
+  const sp = (await searchParams) ?? {};
+  const active = FILTERS.find((f) => f.key === sp.status) ?? FILTERS[0];
 
   const jobs = listJobsForEmployee(user.id, active.statuses);
 

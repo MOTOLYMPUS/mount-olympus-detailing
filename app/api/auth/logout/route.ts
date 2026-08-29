@@ -7,11 +7,11 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
-  const user = getSessionUser();
+  const user = await getSessionUser();
 
   // Revoke server-side first. Clearing only the cookie would leave a valid
   // session row that a stolen token could still use.
-  endCurrentSession();
+  await endCurrentSession();
 
   if (user) {
     audit({

@@ -30,8 +30,8 @@ import { relativeTime } from '@/lib/timezone';
 
 export const dynamic = 'force-dynamic';
 
-export default function JarvisConsolePage() {
-  requireRolePage('manager', '/jarvis');
+export default async function JarvisConsolePage() {
+  await requireRolePage('manager', '/jarvis');
   ensureAgentsRegistered();
 
   const status = orchestratorStatus();

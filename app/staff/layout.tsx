@@ -24,8 +24,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function StaffLayout({ children }: { children: React.ReactNode }) {
-  const user = requireStaffPage('/staff');
+export default async function StaffLayout({ children }: { children: React.ReactNode }) {
+  const user = await requireStaffPage('/staff');
 
   return (
     <AppShell

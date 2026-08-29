@@ -8,9 +8,9 @@ import { PageHeader } from '@/components/ui';
 
 export const dynamic = 'force-dynamic';
 
-export default function EditVehiclePage({ params }: { params: { id: string } }) {
-  const user = requirePage(`/app/garage/${params.id}`);
-  const vehicle = getVehicle(params.id);
+export default async function EditVehiclePage({ params }: { params: Promise<{ id: string }> }) {
+  const user = await requirePage(`/app/garage/${(await params).id}`);
+  const vehicle = getVehicle((await params).id);
 
   // 404 rather than 403 for someone else's vehicle — a 403 would confirm the
   // id exists.

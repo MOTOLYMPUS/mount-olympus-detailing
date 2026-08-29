@@ -16,8 +16,8 @@ import { Role, User } from './models';
 import { atLeast, isStaff } from './rbac';
 
 /** Redirects to sign-in if there is no session. */
-export function requirePage(next?: string): User {
-  const user = getSessionUser();
+export async function requirePage(next?: string): Promise<User> {
+  const user = await getSessionUser();
   if (!user) {
     redirect(next ? `/login?next=${encodeURIComponent(next)}` : '/login');
   }
@@ -35,20 +35,20 @@ export function homeFor(role: Role): string {
   return '/app';
 }
 
-export function requireStaffPage(next?: string): User {
-  const user = requirePage(next);
+export async function requireStaffPage(next?: string): Promise<User> {
+  const user = await requirePage(next);
   if (!isStaff(user.role)) redirect('/app');
   return user;
 }
 
-export function requireRolePage(minimum: Role, next?: string): User {
-  const user = requirePage(next);
+export async function requireRolePage(minimum: Role, next?: string): Promise<User> {
+  const user = await requirePage(next);
   if (!atLeast(user.role, minimum)) redirect(homeFor(user.role));
   return user;
 }
 
 /** Signed-in users have no business on /login or /register. */
-export function redirectIfSignedIn(): void {
-  const user = getSessionUser();
+export async function redirectIfSignedIn(): Promise<void> {
+  const user = await getSessionUser();
   if (user) redirect(homeFor(user.role));
 }
