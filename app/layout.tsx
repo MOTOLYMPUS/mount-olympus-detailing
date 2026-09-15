@@ -81,7 +81,7 @@ export const metadata: Metadata = {
     // 'black-translucent' draws the app under the iOS status bar, which suits
     // the obsidian (#050505) full-bleed background used throughout the app.
     statusBarStyle: 'black-translucent',
-    title: 'OLYMPUS DETAIL',
+    title: 'MOD',
   },
   // iOS's auto-detection turns any digit-looking string into a tel: link and
   // any date-shaped string into a calendar link — both misfire constantly

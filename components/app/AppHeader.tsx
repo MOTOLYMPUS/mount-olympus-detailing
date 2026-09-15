@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 import clsx from 'clsx';
 import { business } from '@/lib/business';
 import { PublicUser } from '@/lib/models';
-import { ROLE_LABEL } from '@/lib/rbac';
+import { ROLE_LABEL, isAdmin } from '@/lib/rbac';
 import { usePrefersReducedMotion } from '@/lib/useDialog';
 
 export default function AppHeader({
@@ -158,6 +158,20 @@ export default function AppHeader({
               >
                 Profile & settings
               </Link>
+              {/* Scheduling settings (hours, buffers, travel) used to be a
+                  bottom tab for owners; it lives here now so the admin tab
+                  bar stays at four tabs on a phone. Admin-gated to match the
+                  page itself (requireRolePage('admin')). */}
+              {isAdmin(user.role) && (
+                <Link
+                  href="/admin/settings"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-sm px-3 py-2 text-sm text-muted transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  Manage calendar
+                </Link>
+              )}
               <Link
                 href="/"
                 role="menuitem"

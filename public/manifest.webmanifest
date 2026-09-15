@@ -1,7 +1,7 @@
 {
   "id": "/app",
   "name": "Mount Olympus Detailing",
-  "short_name": "OLYMPUS DETAIL",
+  "short_name": "MOD",
   "description": "Automotive, marine, and aviation detailing — book services, track jobs, and manage your garage.",
   "start_url": "/app",
   "scope": "/",

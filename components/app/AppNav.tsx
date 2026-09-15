@@ -74,7 +74,6 @@ const ICONS = {
   user: icon('M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'),
   clipboard: icon('M9 3h6v3H9zM7 5H5v16h14V5h-2'),
   chart: icon('M4 20V10M10 20V4M16 20v-7M22 20H2'),
-  cog: icon('M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 7 2.6V2a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 14 3.7'),
   users: icon('M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.9'),
 };
 
@@ -102,13 +101,14 @@ export function navFor(role: Role, counts: { messages?: number } = {}): NavItem[
   if (role === 'employee') return staff;
 
   // Managers and above swap the profile tab for the business view; the profile
-  // is still reachable from the header menu.
+  // is still reachable from the header menu. Four tabs, like the customer bar:
+  // the scheduling settings page moved into the header account menu as
+  // "Manage calendar" (see AppHeader) to keep the bar uncrowded on a phone.
   return [
     { href: '/admin', label: 'Business', icon: ICONS.chart },
     { href: '/admin/schedule', label: 'Schedule', icon: ICONS.calendar },
     { href: '/admin/customers', label: 'Customers', icon: ICONS.users },
     { href: '/staff/messages', label: 'Messages', icon: ICONS.chat, badge: counts.messages },
-    { href: '/admin/settings', label: 'Settings', icon: ICONS.cog },
   ];
 }
 

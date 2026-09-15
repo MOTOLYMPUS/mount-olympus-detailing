@@ -1,20 +1,22 @@
 # public/icons
 
-These PNGs are **generated placeholders**, produced by `scripts/generate-icons.mjs`
-(a zero-dependency PNG encoder using only `node:zlib`/`node:fs` — no canvas,
-no image library). The artwork is a simple geometric "Mount Olympus" triangular
-peak mark in the brand colors (obsidian #050505 background, white body, #D4001A
-summit cap).
+The app icons are the stacked **MOUNT / OLYMPUS / DETAILING** wordmark
+(white, white, apex red #D4001A on obsidian #050505) set in Archivo 800, the
+same display face the site uses. The 16 and 32 px favicons carry a single
+bold "M" with a red base bar instead, because three words are unreadable at
+that size.
 
-## Replacing with real artwork
+## Regenerating
 
-1. Design the real icon at 512×512 (and a maskable variant with the logo kept
-   inside the inner 80% "safe zone" — many OSes crop maskable icons to a
-   circle/squircle).
-2. Export PNGs at the same filenames/sizes listed below and drop them in here,
-   or point `app/layout.tsx` / `public/manifest.webmanifest` at new files.
-3. Re-run `node scripts/generate-icons.mjs` only if you want to regenerate the
-   placeholders — it will overwrite everything in this directory.
+```
+node scripts/icon-wordmark.mjs
+```
+
+then open http://localhost:3999/ in a browser. The page renders every size on
+a canvas and writes the PNGs back into this folder; it exits when done.
+
+`scripts/generate-icons.mjs` is the OLD zero-dependency triangular placeholder
+mark. Do not run it unless you mean to replace the wordmark.
 
 ## Files
 
