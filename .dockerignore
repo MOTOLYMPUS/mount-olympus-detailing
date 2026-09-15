@@ -10,7 +10,9 @@ data.sqlite
 data.sqlite-shm
 data.sqlite-wal
 *.sqlite
-uploads
+# Anchored: a bare `uploads` also excluded app/api/uploads (the upload route)
+# from the image. See the matching note in .gitignore.
+/uploads
 .env.local
 .env*.local
 

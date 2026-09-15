@@ -3,11 +3,14 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Add / change / remove the photo on a vehicle.
 //
-// Two requests by design, matching how job photos and message attachments
-// already work: POST /api/uploads owns the bytes (sniffing, size cap, safe
-// filenames — see lib/uploads.ts), then PATCH /api/vehicles/:id records the
-// resulting URL on the vehicle. The server deletes the previous file when a
-// photo is replaced or removed.
+// Pick → crop → upload → save:
+//   1. the customer picks a picture (file input; the phone's own picker);
+//   2. <PhotoCropper> frames it to the band's 2:1 shape and re-encodes it as
+//      a ~1600 px JPEG — which also sidesteps the size cap and HEIC;
+//   3. POST /api/uploads owns the bytes (sniffing, safe filenames — see
+//      lib/uploads.ts);
+//   4. PATCH /api/vehicles/:id records the URL on the vehicle. The server
+//      deletes the previous file when a photo is replaced or removed.
 //
 // Renders the photo through <VehiclePhotoHeader> so the band looks identical
 // here and on every read-only surface. With no photo it draws an "Add a
@@ -17,9 +20,19 @@
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import clsx from 'clsx';
+import PhotoCropper from './PhotoCropper';
 import { VehiclePhotoHeader } from './VehiclePhoto';
 
-const ACCEPT = 'image/jpeg,image/png,image/webp,image/heic,image/heif';
+/**
+ * No HEIC here on purpose. When the accept list omits it, iOS converts HEIC
+ * photos to JPEG before handing them over; when it is listed, iOS sends the
+ * HEIC as-is and Android/desktop browsers cannot display it. (The cropper
+ * re-encodes to JPEG anyway, so this is belt and braces.)
+ */
+const ACCEPT = 'image/jpeg,image/png,image/webp';
+
+/** The band is 2:1 — the shape of the garage card header on a phone. */
+export const VEHICLE_PHOTO_ASPECT = 2;
 
 export default function VehiclePhotoUploader({
   vehicleId,
@@ -37,6 +50,7 @@ export default function VehiclePhotoUploader({
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [current, setCurrent] = useState<string | null>(photoUrl);
+  const [picked, setPicked] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -54,17 +68,22 @@ export default function VehiclePhotoUploader({
     router.refresh();
   }
 
-  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    setError('');
+    setPicked(file);
+  }
 
+  async function onCropped(blob: Blob) {
+    setPicked(null);
     setBusy(true);
     setError('');
     try {
       const form = new FormData();
       form.set('scope', 'vehicles');
-      form.append('file', file);
+      form.append('file', blob, 'vehicle.jpg');
       const up = await fetch('/api/uploads', { method: 'POST', body: form });
       const data = await up.json().catch(() => ({}));
       if (!up.ok || !data.ok) throw new Error(data.error ?? 'That upload failed.');
@@ -135,6 +154,15 @@ export default function VehiclePhotoUploader({
         <p className="px-1 pt-2 text-[12px] text-flare" role="alert">
           {error}
         </p>
+      )}
+
+      {picked && (
+        <PhotoCropper
+          file={picked}
+          aspect={VEHICLE_PHOTO_ASPECT}
+          onCancel={() => setPicked(null)}
+          onDone={onCropped}
+        />
       )}
     </div>
   );

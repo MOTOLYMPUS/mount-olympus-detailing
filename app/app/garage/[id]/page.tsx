@@ -28,7 +28,9 @@ export default async function EditVehiclePage({ params }: { params: Promise<{ id
           photoUrl={vehicle.photoUrl}
           alt={vehicleLabel(vehicle)}
           className="overflow-hidden rounded-sm border border-white/10"
-          height="h-56"
+          // Same 2:1 shape the cropper frames to, so what the customer saw
+          // while cropping is exactly what shows here.
+          height="aspect-[2/1] h-auto"
         />
       </section>
 

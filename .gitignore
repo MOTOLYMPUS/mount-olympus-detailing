@@ -15,17 +15,22 @@ data.sqlite-wal
 # Uploaded files — customer vehicle photos and handwritten signatures.
 # Personal data; never commit, and back it up alongside the database rather
 # than relying on version control.
-uploads/
+#
+# ANCHORED to the repo root on purpose. An unanchored `uploads/` matches a
+# directory named "uploads" at ANY depth — including app/api/uploads/, the
+# upload ROUTE — which is how that route went uncommitted and the live site
+# shipped without it. Same fix in .dockerignore.
+/uploads/
 
 # Alternate build dirs used when two Next instances run in parallel
 .next-*
 
-# Throwaway CommonJS build produced by `npm run verify:jarvis`
-.verify-build/
-
-# Jarvis content drafts. Agent-written copy awaiting review — regenerable, and
-# noisy in a diff. Delete the ignore line if you would rather version them.
-content/drafts/
-
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Per-app server secrets for the self-hosted multi-app setup (deploy/). The
+# .example templates ARE committed; the real filled-in files must never be.
+deploy/*.env
+deploy/litestream.yml
+deploy/Caddyfile.local
+
