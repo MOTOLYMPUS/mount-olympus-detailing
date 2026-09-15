@@ -66,7 +66,11 @@ export const metadata: Metadata = {
   // preferred here over hand-written <head> tags so they stay consistent with
   // everything else metadata already generates (canonical URLs, OG tags…).
   manifest: '/manifest.webmanifest',
-  applicationName: business.name,
+  // "MOD" everywhere a home-screen / installed-app label is read from:
+  // application-name (Windows/Edge), the manifest name + short_name, and the
+  // iOS apple-mobile-web-app-title below. All four must agree or one platform
+  // will label the icon "Mount Olympus Detailing".
+  applicationName: 'MOD',
   icons: {
     icon: [
       { url: '/icons/favicon-16.png', sizes: '16x16', type: 'image/png' },

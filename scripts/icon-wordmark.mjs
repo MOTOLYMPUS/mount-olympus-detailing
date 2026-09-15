@@ -91,15 +91,17 @@ function drawWordmark(size, pad) {
 
   const blockH = fs * blockEm;
   let y = (size - blockH) / 2 + fs * CAP; // baseline of the first line
-  ctx.textAlign = 'center';
+  // Flush left: every word starts on the same vertical line at the content
+  // box's left edge, the way the lockup is set in the navbar. The block is
+  // still centred vertically.
+  const x = size * pad;
+  ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.font = '800 ' + fs + 'px Archivo';
   ctx.letterSpacing = (tracking * fs) + 'px';
   for (const [text, color] of lines) {
     ctx.fillStyle = color;
-    // letterSpacing adds a trailing space after the last glyph; nudge right
-    // by half of it so the visible letters sit dead centre.
-    ctx.fillText(text, size / 2 - (tracking * fs) / 2, y);
+    ctx.fillText(text, x, y);
     y += fs * (CAP + gap);
   }
   return c;
