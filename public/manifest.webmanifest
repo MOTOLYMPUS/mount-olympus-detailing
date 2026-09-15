@@ -1,7 +1,7 @@
 {
   "id": "/app",
   "name": "Mount Olympus Detailing",
-  "short_name": "Mt Olympus",
+  "short_name": "OLYMPUS DETAIL",
   "description": "Automotive, marine, and aviation detailing — book services, track jobs, and manage your garage.",
   "start_url": "/app",
   "scope": "/",
@@ -67,9 +67,9 @@
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "Assistant",
-      "short_name": "Assistant",
-      "description": "Chat with the booking assistant",
+      "name": "Advice",
+      "short_name": "Advice",
+      "description": "Detailing FAQ and service recommendations",
       "url": "/app/assistant",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }

@@ -55,11 +55,10 @@ export const metadata: Metadata = {
     url: siteUrl,
   },
   robots: {
-    // The site publishes placeholder business details and stock imagery, so it
-    // is kept out of search indexes until it is genuinely launch-ready. Flip
-    // this once lib/business.ts and data/media.ts hold real values.
-    index: false,
-    follow: false,
+    // Live at https://mountolympusdetailing.com with real business details
+    // (lib/business.ts), so search engines are allowed to index the site.
+    index: true,
+    follow: true,
   },
 
   // ── PWA ──
@@ -82,7 +81,7 @@ export const metadata: Metadata = {
     // 'black-translucent' draws the app under the iOS status bar, which suits
     // the obsidian (#050505) full-bleed background used throughout the app.
     statusBarStyle: 'black-translucent',
-    title: 'Mt Olympus',
+    title: 'OLYMPUS DETAIL',
   },
   // iOS's auto-detection turns any digit-looking string into a tel: link and
   // any date-shaped string into a calendar link — both misfire constantly
