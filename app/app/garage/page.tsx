@@ -71,7 +71,7 @@ export default async function GaragePage() {
                 <dl className="flex-1 space-y-1.5 text-[13px]">
                   {v.color && (
                     <div className="flex justify-between gap-3">
-                      <dt className="text-subtle">Colour</dt>
+                      <dt className="text-subtle">Color</dt>
                       <dd className="text-white">{v.color}</dd>
                     </div>
                   )}

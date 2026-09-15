@@ -66,7 +66,7 @@ const AVIATION: string[] = [
   'Black',
   'Green',
   'Yellow',
-  'Multi-colour livery',
+  'Multi-color livery',
 ];
 
 const BY_INDUSTRY: Record<Industry, string[]> = {

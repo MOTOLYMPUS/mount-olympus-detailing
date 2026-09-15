@@ -20,6 +20,15 @@ import { colorsForIndustry, OTHER_COLOR } from '@/data/colors';
 import { Industry, SizeClass } from '@/lib/types';
 import { Vehicle } from '@/lib/models';
 
+// "License plate" is the ask for cars and bikes; the same field holds a hull
+// registration for boats and a tail number for aircraft, so the label follows
+// the industry rather than calling an N-number a license plate.
+const PLATE_LABEL: Record<Industry, string> = {
+  automotive: 'License plate',
+  marine: 'Registration number',
+  aviation: 'Tail number',
+};
+
 export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
   const router = useRouter();
 
@@ -213,6 +222,17 @@ export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
         <fieldset className="grid gap-4 sm:grid-cols-2">
           <legend className="eyebrow mb-3">Details</legend>
 
+          {/* Field order is year → make → model → color → plate, the way people
+              describe a vehicle out loud ("a 2022 Ducati Panigale, red"). */}
+          <SelectField
+            label={config.yearLabel}
+            value={year}
+            onChange={setYear}
+            placeholder="Choose a year…"
+            options={years.map((y) => ({ value: y, label: y }))}
+            error={errors.year}
+          />
+
           {makes.length > 0 ? (
             <SelectField
               label={config.makeLabel}
@@ -246,28 +266,19 @@ export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
           )}
 
           <SelectField
-            label={config.yearLabel}
-            value={year}
-            onChange={setYear}
-            placeholder="Choose a year…"
-            options={years.map((y) => ({ value: y, label: y }))}
-            error={errors.year}
-          />
-
-          <SelectField
-            label="Colour"
+            label="Color"
             value={color}
             onChange={(v) => {
               setColor(v);
               if (v !== OTHER_COLOR) setColorOther('');
             }}
-            placeholder="Choose a colour…"
+            placeholder="Choose a color…"
             options={colors.map((c) => ({ value: c, label: c }))}
           />
 
           {color === OTHER_COLOR && (
             <InputField
-              label="Colour name"
+              label="Color name"
               value={colorOther}
               onChange={setColorOther}
               maxLength={40}
@@ -276,12 +287,7 @@ export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
             />
           )}
 
-          <InputField
-            label="Registration / tail number"
-            value={plate}
-            onChange={setPlate}
-            maxLength={12}
-          />
+          <InputField label={PLATE_LABEL[industry]} value={plate} onChange={setPlate} maxLength={12} />
 
           <div className="sm:col-span-2">
             <TextAreaField

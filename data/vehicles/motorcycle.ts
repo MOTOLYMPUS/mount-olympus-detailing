@@ -19,10 +19,38 @@ export const motorcycleMakes: Make[] = [
   },
   {
     name: 'Ducati',
+    // Current range plus the models still commonly on the road, grouped by
+    // family. Superbikes back to the 916 era, since those are exactly the
+    // bikes that get paint correction and coating.
     models: [
-      'Panigale V2', 'Panigale V4', 'Streetfighter V2', 'Streetfighter V4',
-      'Monster', 'Multistrada V4', 'Multistrada V2', 'Diavel V4',
-      'Scrambler Icon', 'Hypermotard', 'DesertX', 'SuperSport 950',
+      // Panigale / superbikes
+      'Panigale V4', 'Panigale V4 S', 'Panigale V4 R', 'Panigale V4 SP2',
+      'Panigale V2', 'Panigale V2 S', '1299 Panigale', '1199 Panigale', '959 Panigale',
+      '899 Panigale', '1198', '1098', '848 EVO', '848', '999', '998', '996', '916', '749', '748',
+      // Streetfighter
+      'Streetfighter V4', 'Streetfighter V4 S', 'Streetfighter V4 SP2', 'Streetfighter V2',
+      'Streetfighter 1098', 'Streetfighter 848',
+      // Monster
+      'Monster', 'Monster SP', 'Monster 1200', 'Monster 1200 S', 'Monster 821', 'Monster 797',
+      'Monster 796', 'Monster 696', 'Monster 1100', 'Monster S4R', 'Monster S2R', 'Monster 620',
+      // Multistrada
+      'Multistrada V4', 'Multistrada V4 S', 'Multistrada V4 Pikes Peak', 'Multistrada V4 Rally',
+      'Multistrada V4 RS', 'Multistrada V2', 'Multistrada V2 S', 'Multistrada 1260',
+      'Multistrada 1200', 'Multistrada 950', 'Multistrada 1100', 'Multistrada 1000 DS',
+      // Diavel / XDiavel
+      'Diavel V4', 'Diavel 1260', 'Diavel 1260 S', 'Diavel', 'XDiavel', 'XDiavel S',
+      // Scrambler
+      'Scrambler Icon', 'Scrambler Icon Dark', 'Scrambler Full Throttle', 'Scrambler Nightshift',
+      'Scrambler Desert Sled', 'Scrambler Café Racer', 'Scrambler 1100', 'Scrambler 1100 Sport',
+      'Scrambler 800', 'Scrambler Sixty2',
+      // Hypermotard
+      'Hypermotard 950', 'Hypermotard 950 SP', 'Hypermotard 950 RVE', 'Hypermotard 698 Mono',
+      'Hypermotard 939', 'Hypermotard 821', 'Hypermotard 1100', 'Hypermotard 796', 'Hyperstrada',
+      // Adventure / sport touring
+      'DesertX', 'DesertX Rally', 'SuperSport 950', 'SuperSport 950 S', 'SuperSport 939',
+      'ST4', 'ST3', 'ST2',
+      // Classics
+      'Sport 1000', 'GT 1000', 'Paul Smart 1000', 'Supersport 900', 'Supersport 1000',
     ],
   },
   {
