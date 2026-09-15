@@ -11,11 +11,24 @@
 # PERSISTENCE: the app writes its SQLite file and uploaded photos to disk. Mount
 # a persistent volume at /data and the two ENV lines below point the app at it.
 # WITHOUT a mounted volume every deploy starts empty — see DEPLOY.md.
+#
+# ⚠️  WORKDIR IS /srv/site, NOT /app — DO NOT CHANGE IT BACK.
+#
+# This project uses the Next.js App Router, whose source lives in a folder
+# named `app/`, and it also has a customer route segment named `app/app/`.
+# With WORKDIR=/app the absolute paths became /app/app (router root) and
+# /app/app/app (customer route) — three nested "app"s — and Next.js resolved
+# the WRONG one as the router root. Symptom: every page route (/, /login,
+# /staff, even nonexistent pages) rendered the customer layout and bounced to
+# /login?next=/app in a redirect loop, while /api/* and static files worked.
+# Using a working directory that is not itself named "app" removes the
+# ambiguity entirely. (Local dev never hit this because the project folder is
+# not named "app".)
 # ─────────────────────────────────────────────────────────────────────────────
 
 # ── deps: install once, cache well ──────────────────────────────────────────
 FROM node:24-slim AS deps
-WORKDIR /app
+WORKDIR /srv/site
 COPY package.json package-lock.json ./
 # `--include=dev` is not optional: `next build` needs the devDependencies
 # (typescript, tailwindcss, postcss, eslint-config-next). Hosts like Railway
@@ -25,8 +38,8 @@ RUN npm ci --include=dev
 
 # ── build ────────────────────────────────────────────────────────────────────
 FROM node:24-slim AS build
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+WORKDIR /srv/site
+COPY --from=deps /srv/site/node_modules ./node_modules
 COPY . .
 # Site URL is compiled into the client bundle at build time, so it must be
 # present here — not only at runtime. The host passes it as a build arg.
@@ -36,16 +49,16 @@ RUN npm run build
 
 # ── run ──────────────────────────────────────────────────────────────────────
 FROM node:24-slim AS run
-WORKDIR /app
+WORKDIR /srv/site
 ENV NODE_ENV=production
 
 # Only what the server needs to run.
-COPY --from=build /app/.next ./.next
-COPY --from=build /app/public ./public
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/next.config.js ./next.config.js
-COPY --from=build /app/scripts ./scripts
+COPY --from=build /srv/site/.next ./.next
+COPY --from=build /srv/site/public ./public
+COPY --from=build /srv/site/node_modules ./node_modules
+COPY --from=build /srv/site/package.json ./package.json
+COPY --from=build /srv/site/next.config.js ./next.config.js
+COPY --from=build /srv/site/scripts ./scripts
 
 # Default the data + upload paths at the volume mount point. The host can
 # override these, but these defaults mean "mount a volume at /data and it works".
