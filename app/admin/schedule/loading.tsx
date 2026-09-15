@@ -1,6 +1,6 @@
-// Mirrors app/admin/schedule/page.tsx: PageHeader with an "Estimate queue"
-// action, the five-control filter card (`lg:grid-cols-5`), then the bookings
-// list card.
+// Mirrors app/admin/schedule/page.tsx: PageHeader with the Filter + Estimate
+// queue actions, the bookings list card, then the month calendar card. The
+// filter card is collapsed by default, so it has no skeleton.
 
 import { LoadingRegion, Skeleton } from '@/components/visual/Skeleton';
 import { SkeletonPageHeader, SkeletonPanel } from '@/components/app/LoadingParts';
@@ -11,25 +11,9 @@ export default function Loading() {
       <>
         <SkeletonPageHeader action />
 
-        <SkeletonPanel className="mb-6" title={false}>
-          <Skeleton className="mb-4 h-2.5 w-16" />
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="flex flex-col gap-1.5">
-                <Skeleton className="h-2.5 w-20" />
-                {/* h-[46px] is the rendered height of `.input-field`. */}
-                <Skeleton className="h-[46px] w-full" />
-              </div>
-            ))}
-            <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-5">
-              <Skeleton className="h-[42px] w-24" />
-            </div>
-          </div>
-        </SkeletonPanel>
-
-        <SkeletonPanel>
+        <SkeletonPanel className="mb-6">
           <div className="divide-y divide-white/5">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex flex-wrap items-center justify-between gap-3 py-3.5">
                 <div className="min-w-0 flex-1">
                   <Skeleton className="h-3.5 w-56 max-w-full" />
@@ -40,6 +24,19 @@ export default function Loading() {
                   <Skeleton className="h-5 w-20 rounded-full" />
                 </div>
               </div>
+            ))}
+          </div>
+        </SkeletonPanel>
+
+        <SkeletonPanel>
+          <div className="mb-4 flex items-center justify-between">
+            <Skeleton className="h-8 w-10" />
+            <Skeleton className="h-5 w-36" />
+            <Skeleton className="h-8 w-10" />
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {Array.from({ length: 35 }).map((_, i) => (
+              <Skeleton key={i} className="aspect-square w-full sm:aspect-auto sm:h-16" />
             ))}
           </div>
         </SkeletonPanel>
