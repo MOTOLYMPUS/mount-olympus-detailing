@@ -166,7 +166,10 @@ export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
               selected={vehicleType === t.id}
               onToggle={() => {
                 setVehicleType(t.id);
-                setSizeClass('');
+                // A type with a single size (motorcycle, PWC, helicopter…)
+                // gets it chosen here, so the size section below can be
+                // skipped rather than asking a question with one answer.
+                setSizeClass(t.sizes.length === 1 ? t.sizes[0] : '');
                 setMake('');
                 setModel('');
               }}
@@ -182,7 +185,7 @@ export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
       </fieldset>
 
       {/* ── Size ─────────────────────────────────────────────────────────── */}
-      {vehicleType && (
+      {vehicleType && sizes.length > 1 && (
         <fieldset>
           <legend className="eyebrow mb-3">{config.sizeLabel}</legend>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
