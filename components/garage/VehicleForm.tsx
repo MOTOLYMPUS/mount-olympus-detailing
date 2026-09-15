@@ -16,6 +16,7 @@ import { InputField, SelectField, TextAreaField, ChoiceCard } from '@/components
 import { Alert, buttonClass } from '@/components/ui';
 import { industryList, industries } from '@/lib/industries';
 import { getMakes, getModels } from '@/data/vehicles';
+import { colorsForIndustry, OTHER_COLOR } from '@/data/colors';
 import { Industry, SizeClass } from '@/lib/types';
 import { Vehicle } from '@/lib/models';
 
@@ -28,9 +29,17 @@ export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
   const [make, setMake] = useState(vehicle?.make ?? '');
   const [model, setModel] = useState(vehicle?.model ?? '');
   const [year, setYear] = useState(vehicle?.year ?? '');
-  const [trim, setTrim] = useState(vehicle?.trim ?? '');
-  const [color, setColor] = useState(vehicle?.color ?? '');
-  const [vin, setVin] = useState(vehicle?.vin ?? '');
+
+  // Colour is a dropdown of colour families (data/colors.ts) with a free-text
+  // "Other". A stored colour that is not in the list (typed before the dropdown
+  // existed, or entered via "Other") is shown as Other + the stored text, so
+  // editing never silently discards it.
+  const initialColors = colorsForIndustry(vehicle?.industry ?? 'automotive');
+  const storedColor = vehicle?.color ?? '';
+  const storedIsListed = !storedColor || initialColors.includes(storedColor);
+  const [color, setColor] = useState(storedIsListed ? storedColor : OTHER_COLOR);
+  const [colorOther, setColorOther] = useState(storedIsListed ? '' : storedColor);
+
   const [plate, setPlate] = useState(vehicle?.plate ?? '');
   const [notes, setNotes] = useState(vehicle?.notes ?? '');
   const [isDefault, setIsDefault] = useState(vehicle?.isDefault ?? false);
@@ -52,15 +61,28 @@ export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
 
   const makes = typeDef ? getMakes(typeDef.catalog) : [];
   const models = typeDef && make ? getModels(typeDef.catalog, make) : [];
+  const colors = colorsForIndustry(industry);
+
+  // Newest first: next model year down to 1900 (classics and warbirds). Bounds
+  // mirror the server's year validation and the public estimate wizard.
+  const currentYear = new Date().getFullYear();
+  const years = useMemo(() => {
+    const out: string[] = [];
+    for (let y = currentYear + 1; y >= 1900; y--) out.push(String(y));
+    return out;
+  }, [currentYear]);
 
   function changeIndustry(next: Industry) {
     // Every downstream choice belongs to the old industry's vocabulary, so
-    // clear them rather than leaving a stale, invalid selection behind.
+    // clear them rather than leaving a stale, invalid selection behind. Colour
+    // families differ per industry too (gelcoat vs paint vs livery).
     setIndustry(next);
     setVehicleType('');
     setSizeClass('');
     setMake('');
     setModel('');
+    setColor('');
+    setColorOther('');
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -76,9 +98,12 @@ export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
       make,
       model,
       year,
-      trim,
-      color,
-      vin,
+      // Trim and VIN are no longer asked for on the form. They are still sent
+      // through unchanged so editing an older vehicle that has them does not
+      // wipe the stored values.
+      trim: vehicle?.trim ?? '',
+      vin: vehicle?.vin ?? '',
+      color: color === OTHER_COLOR ? colorOther.trim() : color,
       plate,
       notes,
       isDefault,
@@ -217,33 +242,43 @@ export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
             <InputField label={config.modelLabel} value={model} onChange={setModel} required error={errors.model} />
           )}
 
-          <InputField
+          <SelectField
             label={config.yearLabel}
             value={year}
             onChange={setYear}
-            inputMode="numeric"
-            maxLength={4}
+            placeholder="Choose a year…"
+            options={years.map((y) => ({ value: y, label: y }))}
             error={errors.year}
           />
-          <InputField label="Trim" value={trim} onChange={setTrim} maxLength={60} />
-          <InputField label="Colour" value={color} onChange={setColor} maxLength={40} />
+
+          <SelectField
+            label="Colour"
+            value={color}
+            onChange={(v) => {
+              setColor(v);
+              if (v !== OTHER_COLOR) setColorOther('');
+            }}
+            placeholder="Choose a colour…"
+            options={colors.map((c) => ({ value: c, label: c }))}
+          />
+
+          {color === OTHER_COLOR && (
+            <InputField
+              label="Colour name"
+              value={colorOther}
+              onChange={setColorOther}
+              maxLength={40}
+              placeholder="e.g. Rosso Corsa"
+              hint="The factory name if you know it."
+            />
+          )}
+
           <InputField
             label="Registration / tail number"
             value={plate}
             onChange={setPlate}
             maxLength={12}
           />
-
-          <div className="sm:col-span-2">
-            <InputField
-              label="VIN / hull ID"
-              value={vin}
-              onChange={setVin}
-              maxLength={17}
-              error={errors.vin}
-              hint="Optional. Helps us match the exact paint or gelcoat system."
-            />
-          </div>
 
           <div className="sm:col-span-2">
             <TextAreaField

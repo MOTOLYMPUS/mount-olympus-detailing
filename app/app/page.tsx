@@ -472,6 +472,16 @@ export default async function DashboardPage() {
         </section>
       )}
 
+      {/* Advice used to be a bottom tab; it was dropped from the tab bar to
+          keep the bar to four tabs on a phone, so this is its home now. */}
+      <p className="text-sm text-muted">
+        Not sure what your vehicle needs?{' '}
+        <Link href="/app/assistant" className="text-flare hover:underline">
+          Get detailing advice
+        </Link>
+        .
+      </p>
+
       {!user.smsConsent && (
         <Alert tone="info" title="Want appointment reminders by text?">
           Turn on SMS in{' '}
