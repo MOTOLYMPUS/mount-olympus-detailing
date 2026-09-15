@@ -11,7 +11,8 @@
 //   images               → stale-while-revalidate, cache trimmed to a bound
 //   /api/* (GET)         → network-first with a cache fallback, stamping a
 //                         header so the UI can flag data as possibly stale
-//   everything else (GET) → cache-first (icons, manifest, offline page)
+//   everything else (GET) → network-first, cache fallback (icons, manifest,
+//                         offline page) — see networkFirst for why not cache-first
 //   non-GET               → always passes straight through, untouched
 //   /api/auth/*            → always passes straight through, untouched
 //
@@ -41,7 +42,11 @@
 // name below is derived from it, so changing VERSION is the *entire*
 // mechanism for cache-busting — `activate` deletes anything not in the
 // current set.
-const VERSION = 'v1';
+// v2: manifest + icons moved from cache-first to network-first. Under v1 a
+// phone that had installed the app kept serving the ORIGINAL manifest and
+// icons forever (Add to Home Screen still said "Mt Olympus" weeks after the
+// name changed), because cache-first never re-fetched them.
+const VERSION = 'v2';
 
 const SHELL_CACHE = `mod-shell-${VERSION}`;
 const STATIC_CACHE = `mod-static-${VERSION}`;
@@ -157,6 +162,25 @@ async function cacheFirst(request, cacheName) {
   return response;
 }
 
+/**
+ * Network-first with a cache fallback, for small same-origin assets whose
+ * content changes without their URL changing (the manifest, the icons). Fresh
+ * when online, precached copy when not. Unlike cacheFirst, an old copy can
+ * never be served while the network is reachable.
+ */
+async function networkFirst(request, cacheName) {
+  const cache = await caches.open(cacheName);
+  try {
+    const response = await withTimeout(fetch(request), NETWORK_TIMEOUT_MS);
+    if (!shouldBypassCache(request, response)) cache.put(request, response.clone());
+    return response;
+  } catch (err) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    throw err;
+  }
+}
+
 async function handleNavigation(request) {
   const cache = await caches.open(SHELL_CACHE);
   try {
@@ -270,8 +294,11 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Everything else same-origin GET: manifest, /icons/*, offline.html fetched
-  // directly, etc.
-  event.respondWith(cacheFirst(request, SHELL_CACHE));
+  // directly, etc. Network-first, NOT cache-first: these URLs never change
+  // but their contents do (renamed app, new icon), and Add to Home Screen
+  // reads them at install time — so a stale cached copy becomes the icon and
+  // label the customer is stuck with.
+  event.respondWith(networkFirst(request, SHELL_CACHE));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
