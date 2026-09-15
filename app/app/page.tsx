@@ -46,6 +46,7 @@ import {
   buttonClass,
 } from '@/components/ui';
 import Reveal from '@/components/visual/Reveal';
+import { VehiclePhotoBackdrop } from '@/components/garage/VehiclePhoto';
 import Backdrop from '@/components/visual/Backdrop';
 import { Counter } from '@/components/visual/Effects';
 
@@ -76,6 +77,7 @@ export default async function DashboardPage() {
 
   const reminders = buildReminders(vehicles, [...upcoming, ...past]);
   const defaultVehicle = vehicles.find((v) => v.isDefault) ?? vehicles[0];
+  const photoFor = new Map(vehicles.map((v) => [v.id, v.photoUrl]));
   const recommended = defaultVehicle ? recommendServices(defaultVehicle, past) : [];
 
   const nextTier = (['silver', 'gold', 'platinum'] as const).find(
@@ -131,7 +133,8 @@ export default async function DashboardPage() {
               // `.lift` and `.sweep-hover` only on cards that lead somewhere.
               // A card that rises under the cursor but is not clickable is a
               // lie about what happens if you click it.
-              <Card as="li" key={a.id} className="lift sweep-hover">
+              <Card as="li" key={a.id} className="lift sweep-hover relative isolate overflow-hidden">
+                <VehiclePhotoBackdrop src={a.vehicleId ? photoFor.get(a.vehicleId) : null} />
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-display text-lg font-semibold text-white">
@@ -269,7 +272,10 @@ export default async function DashboardPage() {
         </Card>
 
         {/* ── Garage ───────────────────────────────────────────────────────── */}
-        <Card className="lift">
+        <Card className="lift relative isolate overflow-hidden">
+          {/* The default vehicle's photo, faint, behind the panel — context
+              for the list, never the focal point. */}
+          <VehiclePhotoBackdrop src={defaultVehicle?.photoUrl} />
           <CardTitle
             action={
               <Link href="/app/garage" className="text-[12px] text-muted hover:text-white">

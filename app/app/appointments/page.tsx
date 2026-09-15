@@ -1,7 +1,9 @@
 import Link from 'next/link';
 import { requirePage } from '@/lib/guards';
 import { listAppointments } from '@/lib/repo/appointments';
+import { listVehicles } from '@/lib/repo/vehicles';
 import { getSchedulingConfig } from '@/lib/repo/settings';
+import { VehiclePhotoBackdrop } from '@/components/garage/VehiclePhoto';
 import { formatDateTime, relativeTime } from '@/lib/timezone';
 import { formatPrice } from '@/lib/pricing';
 import { getService } from '@/data/pricing';
@@ -22,6 +24,10 @@ export default async function AppointmentsPage() {
     limit: 50,
   });
   const past = listAppointments({ customerId: user.id, direction: 'past', limit: 50 });
+
+  // Vehicle photos, keyed by id, for the faint backdrop on each upcoming
+  // card. Archived vehicles included: a booking can outlive the garage entry.
+  const photoFor = new Map(listVehicles(user.id, true).map((v) => [v.id, v.photoUrl]));
 
   return (
     <div className="space-y-10">
@@ -44,8 +50,14 @@ export default async function AppointmentsPage() {
         ) : (
           <ul className="space-y-3">
             {upcoming.map((a) => (
-              <Card as="li" key={a.id} className="flex flex-wrap items-center justify-between gap-4">
-                <div className="min-w-[220px] flex-1">
+              <Card
+                as="li"
+                key={a.id}
+                className="relative isolate flex flex-wrap items-center justify-between gap-4 overflow-hidden"
+              >
+                {/* Faint vehicle photo behind the card — context, not focus. */}
+                <VehiclePhotoBackdrop src={a.vehicleId ? photoFor.get(a.vehicleId) : null} />
+                <div className="relative min-w-[220px] flex-1">
                   <div className="flex flex-wrap items-center gap-3">
                     <p className="font-display text-base font-semibold text-white">
                       {formatDateTime(a.startsAt, tz)}

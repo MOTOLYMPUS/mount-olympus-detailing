@@ -34,6 +34,7 @@ import { activeMembership, getLoyaltyAccount, listLoyaltyEvents } from '@/lib/re
 import { getSchedulingConfig } from '@/lib/repo/settings';
 import { listEstimateRequestsByEmail } from '@/lib/db';
 import { vehicleLabel } from '@/lib/models';
+import { VehicleThumb } from '@/components/garage/VehiclePhoto';
 import { formatDate, formatDateTime, relativeTime } from '@/lib/timezone';
 import { formatCurrency } from '@/lib/pricing';
 import { getService } from '@/data/pricing';
@@ -149,11 +150,14 @@ export default async function AdminCustomerPage({ params }: { params: Promise<{ 
                     key={v.id}
                     className="flex flex-wrap items-center justify-between gap-2 border-b border-white/5 py-2.5 last:border-0"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm text-white">{vehicleLabel(v)}</p>
-                      <p className="text-[12px] text-subtle">
-                        {[v.color, v.plate, v.vin].filter(Boolean).join(' · ') || 'No identifiers'}
-                      </p>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <VehicleThumb src={v.photoUrl} alt={vehicleLabel(v)} />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm text-white">{vehicleLabel(v)}</p>
+                        <p className="text-[12px] text-subtle">
+                          {[v.color, v.plate, v.vin].filter(Boolean).join(' · ') || 'No identifiers'}
+                        </p>
+                      </div>
                     </div>
                     <div className="flex shrink-0 gap-1.5">
                       <Badge>{sizeLabel(v.sizeClass)}</Badge>

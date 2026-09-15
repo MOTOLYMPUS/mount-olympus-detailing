@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import VehicleForm from '@/components/garage/VehicleForm';
 import ArchiveVehicleButton from '@/components/garage/ArchiveVehicleButton';
+import VehiclePhotoUploader from '@/components/garage/VehiclePhotoUploader';
 import { requirePage } from '@/lib/guards';
 import { getVehicle } from '@/lib/repo/vehicles';
 import { vehicleLabel } from '@/lib/models';
@@ -19,6 +20,18 @@ export default async function EditVehiclePage({ params }: { params: Promise<{ id
   return (
     <div className="max-w-3xl">
       <PageHeader eyebrow="Garage" title={vehicleLabel(vehicle)} />
+
+      <section className="mb-8">
+        <h2 className="mb-3 font-mono text-[11px] uppercase tracking-widest2 text-subtle">Photo</h2>
+        <VehiclePhotoUploader
+          vehicleId={vehicle.id}
+          photoUrl={vehicle.photoUrl}
+          alt={vehicleLabel(vehicle)}
+          className="overflow-hidden rounded-sm border border-white/10"
+          height="h-56"
+        />
+      </section>
+
       <VehicleForm vehicle={vehicle} />
 
       <div className="mt-10 border-t border-white/10 pt-6">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useId } from 'react';
+import { VehiclePhotoHeader } from '@/components/garage/VehiclePhoto';
 
 interface BaseProps {
   label: string;
@@ -101,11 +102,12 @@ interface InputProps extends BaseProps {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
-  type?: 'text' | 'email' | 'tel' | 'date';
-  inputMode?: 'text' | 'numeric' | 'tel' | 'email';
+  type?: 'text' | 'email' | 'tel' | 'date' | 'number';
+  inputMode?: 'text' | 'numeric' | 'tel' | 'email' | 'decimal';
   maxLength?: number;
   autoComplete?: string;
   min?: string;
+  max?: string;
   disabled?: boolean;
 }
 
@@ -118,6 +120,7 @@ export function InputField({
   maxLength,
   autoComplete,
   min,
+  max,
   disabled,
   ...base
 }: InputProps) {
@@ -131,6 +134,7 @@ export function InputField({
           type={type}
           value={value}
           min={min}
+          max={max}
           disabled={disabled}
           placeholder={placeholder}
           inputMode={inputMode}
@@ -191,6 +195,7 @@ export function ChoiceCard({
   subtitle,
   meta,
   multi = true,
+  image,
 }: {
   selected: boolean;
   onToggle: () => void;
@@ -199,21 +204,15 @@ export function ChoiceCard({
   meta?: string;
   /** Checkbox semantics for multi-select, radio for single-select. */
   multi?: boolean;
+  /**
+   * Optional photo drawn as a band across the top of the card (a customer's
+   * vehicle in the booking flow), clear at the top and fading into the card
+   * so the title below stays readable — the same treatment as the garage.
+   */
+  image?: string;
 }) {
-  return (
-    <button
-      type="button"
-      role={multi ? 'checkbox' : 'radio'}
-      aria-checked={selected}
-      onClick={onToggle}
-      // `.lift` gives the hover elevation from globals.css — transform +
-      // box-shadow only, both pre-declared at rest so the first hover does not
-      // create a new paint layer mid-animation. Nothing about the selection
-      // semantics above changed.
-      className={`lift flex items-start justify-between gap-3 rounded-sm border px-4 py-3.5 text-left ${
-        selected ? 'border-apex bg-apex/10' : 'border-white/20 hover:border-white/45'
-      }`}
-    >
+  const body = (
+    <>
       <span className="min-w-0">
         <span className="block text-sm text-white">{title}</span>
         {subtitle && <span className="mt-0.5 block text-[12px] leading-snug text-subtle">{subtitle}</span>}
@@ -232,6 +231,31 @@ export function ChoiceCard({
           </svg>
         )}
       </span>
+    </>
+  );
+
+  return (
+    <button
+      type="button"
+      role={multi ? 'checkbox' : 'radio'}
+      aria-checked={selected}
+      onClick={onToggle}
+      // `.lift` gives the hover elevation from globals.css — transform +
+      // box-shadow only, both pre-declared at rest so the first hover does not
+      // create a new paint layer mid-animation. Nothing about the selection
+      // semantics above changed.
+      className={`lift rounded-sm border text-left ${
+        image ? 'flex flex-col overflow-hidden' : 'flex items-start justify-between gap-3 px-4 py-3.5'
+      } ${selected ? 'border-apex bg-apex/10' : 'border-white/20 hover:border-white/45'}`}
+    >
+      {image ? (
+        <>
+          <VehiclePhotoHeader src={image} alt="" height="h-28" />
+          <span className="flex w-full items-start justify-between gap-3 px-4 py-3.5">{body}</span>
+        </>
+      ) : (
+        body
+      )}
     </button>
   );
 }

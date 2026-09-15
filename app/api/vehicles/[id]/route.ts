@@ -8,9 +8,15 @@ import {
   updateVehicle,
 } from '@/lib/repo/vehicles';
 import { validateVehicle } from '@/lib/validation-account';
+import { remove } from '@/lib/uploads';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
+// A vehicle photo must be one of OUR uploads in the vehicles scope — the exact
+// shape lib/uploads.ts generates. Anything else (an external URL, a job photo,
+// a data: URI) is refused, so the field can never point outside /api/files.
+const VEHICLE_PHOTO_URL = /^\/api\/files\/(vehicles\/[0-9a-f-]{36}\.(jpg|png|gif|webp|heic))$/;
 
 /**
  * Ownership is checked on every verb. Returning 404 rather than 403 for
@@ -42,6 +48,27 @@ export const PATCH = withAuth('any', async ({ user, params, body }) => {
   if (b.action === 'restore') {
     restoreVehicle(existing.id);
     return ok({ vehicle: getVehicle(existing.id) });
+  }
+  if (b.action === 'setPhoto') {
+    // null clears the photo; a string must be one of our own vehicle uploads.
+    const raw = b.photoUrl;
+    let photoUrl: string | null = null;
+    if (raw !== null && raw !== undefined && raw !== '') {
+      if (typeof raw !== 'string' || !VEHICLE_PHOTO_URL.test(raw)) {
+        return fail('That photo could not be used.', 400);
+      }
+      photoUrl = raw;
+    }
+
+    // Replacing or removing a photo orphans the old file; delete it rather
+    // than let the uploads volume fill with pictures nothing references.
+    const previous = existing.photoUrl;
+    if (previous && previous !== photoUrl) {
+      const match = VEHICLE_PHOTO_URL.exec(previous);
+      if (match) await remove(match[1]);
+    }
+
+    return ok({ vehicle: updateVehicle(existing.id, { photoUrl }) });
   }
 
   const result = validateVehicle({ ...existing, ...b });

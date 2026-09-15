@@ -341,6 +341,7 @@ export default function BookingFlow({
                   title={vehicleLabel(v)}
                   subtitle={sizeLabel(v.sizeClass)}
                   meta={v.color || undefined}
+                  image={v.photoUrl ?? undefined}
                 />
               ))}
             </div>

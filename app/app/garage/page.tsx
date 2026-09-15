@@ -7,6 +7,7 @@ import { sizeLabel } from '@/lib/industries';
 import { formatDate } from '@/lib/timezone';
 import { getSchedulingConfig } from '@/lib/repo/settings';
 import { Badge, Card, EmptyState, LinkButton, PageHeader, buttonClass } from '@/components/ui';
+import VehiclePhotoUploader from '@/components/garage/VehiclePhotoUploader';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,7 +56,17 @@ export default async function GaragePage() {
               // navigate, so the elevation is honest. `sweep-hover` fires once
               // per hover with no idle animation, which is what keeps a grid of
               // twelve vehicles from being a light show.
-              <Card as="li" key={v.id} className="lift sweep-hover flex flex-col">
+              <Card as="li" key={v.id} className="lift sweep-hover flex flex-col overflow-hidden">
+                {/* The photo band bleeds to the card's edges (negative margins
+                    cancel Card's p-5) and fades into the card so the title
+                    below never sits on a hard edge. With no photo it is an
+                    "Add a photo" band of the same height. */}
+                <VehiclePhotoUploader
+                  vehicleId={v.id}
+                  photoUrl={v.photoUrl}
+                  alt={vehicleLabel(v)}
+                  className="-mx-5 -mt-5 mb-4"
+                />
                 <div className="mb-3 flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-display text-lg font-semibold text-white">
