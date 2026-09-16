@@ -294,6 +294,19 @@ export async function sendAppointmentReminder(
   return { email, sms };
 }
 
+/**
+ * The short-notice reminder, about 2½ hours out. Text only: an email this
+ * close to the visit is noise, and the in-app bell + push carry it too
+ * (see app/api/cron/reminders). SMS still requires the customer's consent.
+ */
+export async function sendAppointmentSoon(user: User, appointment: Appointment): Promise<Status> {
+  const when = formatDateTime(appointment.startsAt, getSchedulingConfig().timezone);
+  return sendSms(
+    user,
+    `${business.name}: see you soon — your detail is at ${when}. Ref ${appointment.reference}. Reply STOP to opt out.`
+  );
+}
+
 export async function sendJobComplete(user: User, appointment: Appointment): Promise<Status> {
   return sendEmail(
     user.email,

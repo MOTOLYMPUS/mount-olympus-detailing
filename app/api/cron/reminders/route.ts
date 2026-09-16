@@ -23,7 +23,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'node:crypto';
 import { dueForReminder, updateAppointment } from '@/lib/repo/appointments';
 import { getUser } from '@/lib/repo/users';
-import { sendAppointmentReminder } from '@/lib/notify-account';
+import { sendAppointmentReminder, sendAppointmentSoon } from '@/lib/notify-account';
 import { notifyUser } from '@/lib/push';
 import { getSchedulingConfig } from '@/lib/repo/settings';
 import { formatDateTime } from '@/lib/timezone';
@@ -33,6 +33,14 @@ export const dynamic = 'force-dynamic';
 
 /** How far ahead to look. A reminder the evening before is the useful one. */
 const LOOKAHEAD_HOURS = 24;
+
+/**
+ * Second, short-notice reminder: "see you in about 2½ hours". Its own stamp
+ * (reminded_soon_at) so it fires exactly once regardless of the day-before
+ * one. The scheduler must run at least every 30 minutes for this to land
+ * close to the mark; with hourly runs it arrives 2–3 hours out.
+ */
+const SOON_HOURS = 2.5;
 
 function authorised(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET?.trim();
@@ -92,7 +100,39 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, considered: due.length, sent, skipped });
+  // ── Short-notice pass: starts within the next 2½ hours ─────────────────────
+  const soonTo = new Date(Date.now() + SOON_HOURS * 60 * 60 * 1000).toISOString();
+  const dueSoon = dueForReminder(from, soonTo, 'soon');
+  let soonSent = 0;
+
+  for (const appointment of dueSoon) {
+    const customer = getUser(appointment.customerId);
+    if (!customer) continue;
+
+    updateAppointment(appointment.id, { remindedSoonAt: new Date().toISOString() });
+
+    await notifyUser(customer.id, {
+      kind: 'appointment_soon',
+      title: 'See you soon',
+      body: `Your detail is at ${formatDateTime(appointment.startsAt, config.timezone)} · ${appointment.reference}`,
+      url: `/app/appointments/${appointment.id}`,
+    });
+
+    try {
+      await sendAppointmentSoon(customer, appointment);
+      soonSent++;
+    } catch (e) {
+      console.error('[cron] short-notice reminder failed', appointment.reference, e);
+    }
+  }
+
+  return NextResponse.json({
+    ok: true,
+    considered: due.length,
+    sent,
+    skipped,
+    soon: { considered: dueSoon.length, sent: soonSent },
+  });
 }
 
 export async function GET() {

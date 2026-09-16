@@ -182,7 +182,8 @@ CREATE TABLE IF NOT EXISTS appointments (
   photo_urls       TEXT NOT NULL DEFAULT '[]',
   cancel_reason    TEXT,
   cancelled_at     TEXT,
-  reminded_at      TEXT,
+  reminded_at      TEXT,           -- day-before reminder sent
+  reminded_soon_at TEXT,           -- 2½-hours-before reminder sent; see migrate()
   source           TEXT NOT NULL DEFAULT 'app',
   created_at       TEXT NOT NULL,
   updated_at       TEXT NOT NULL
@@ -551,6 +552,12 @@ function migrate(db: DatabaseSync) {
   // them off in Profile. Existing rows get the same default.
   if (!has('users', 'push_opt_in')) {
     db.exec(`ALTER TABLE users ADD COLUMN push_opt_in INTEGER NOT NULL DEFAULT 1`);
+  }
+
+  // Second, short-notice reminder (2½ hours before) gets its own stamp so the
+  // two reminders are independently idempotent.
+  if (!has('appointments', 'reminded_soon_at')) {
+    db.exec(`ALTER TABLE appointments ADD COLUMN reminded_soon_at TEXT`);
   }
 }
 

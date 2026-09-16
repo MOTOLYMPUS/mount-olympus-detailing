@@ -50,6 +50,7 @@ function toAppointment(row: Row): Appointment {
     cancelReason: row.cancel_reason ?? null,
     cancelledAt: row.cancelled_at ?? null,
     remindedAt: row.reminded_at ?? null,
+    remindedSoonAt: row.reminded_soon_at ?? null,
     source: row.source,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -319,6 +320,7 @@ export interface UpdateAppointmentInput {
   paidCents?: number;
   photoUrls?: string[];
   remindedAt?: string;
+  remindedSoonAt?: string;
 }
 
 export function updateAppointment(
@@ -342,6 +344,7 @@ export function updateAppointment(
     depositCents: 'deposit_cents',
     paidCents: 'paid_cents',
     remindedAt: 'reminded_at',
+    remindedSoonAt: 'reminded_soon_at',
   };
   const jsonColumns: Record<string, string> = {
     serviceIds: 'service_ids',
@@ -522,13 +525,23 @@ export function repeatCustomerStats(): { total: number; repeat: number } {
   return { total: Number(row.total), repeat: Number(row.repeat_count ?? 0) };
 }
 
-/** Appointments starting inside a window that have not had a reminder sent. */
-export function dueForReminder(fromIso: string, toIso: string): Appointment[] {
+/**
+ * Appointments starting inside a window that have not had the given reminder
+ * sent. 'day' is the day-before reminder (reminded_at); 'soon' the 2½-hour
+ * one (reminded_soon_at). Each has its own stamp so they are independently
+ * idempotent.
+ */
+export function dueForReminder(
+  fromIso: string,
+  toIso: string,
+  kind: 'day' | 'soon' = 'day'
+): Appointment[] {
+  const column = kind === 'soon' ? 'reminded_soon_at' : 'reminded_at';
   const rows = getDb()
     .prepare(
       `SELECT * FROM appointments
         WHERE status IN ('scheduled', 'confirmed')
-          AND reminded_at IS NULL
+          AND ${column} IS NULL
           AND starts_at >= ? AND starts_at < ?`
     )
     .all(fromIso, toIso) as Row[];

@@ -173,6 +173,8 @@ export interface Appointment {
   cancelReason: string | null;
   cancelledAt: string | null;
   remindedAt: string | null;
+  /** When the 2½-hours-before reminder went out. */
+  remindedSoonAt: string | null;
   source: string;
   createdAt: string;
   updatedAt: string;
