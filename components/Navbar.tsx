@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import clsx from 'clsx';
 import IndustrySelector from './IndustrySelector';
 import { useIndustry } from './IndustryProvider';
@@ -62,7 +63,10 @@ export default function Navbar({ onGetEstimate }: { onGetEstimate: () => void })
   return (
     <header
       className={clsx(
-        'fixed inset-x-0 top-0 z-50 transition-colors duration-500 ease-apex',
+        // pt-[env(safe-area-inset-top)] keeps the bar clear of a notched
+        // phone's status bar now that the page is laid out edge to edge
+        // (viewport-fit=cover in app/layout.tsx). Zero on every other device.
+        'fixed inset-x-0 top-0 z-50 pt-[env(safe-area-inset-top)] transition-colors duration-500 ease-apex',
         // `.glass` (one small, fixed, non-scrolling surface — the case its cost
         // is justified for) plus an opaque-enough base so the links keep their
         // measured contrast over whatever hero frame is behind them. The mobile
@@ -125,6 +129,15 @@ export default function Navbar({ onGetEstimate }: { onGetEstimate: () => void })
               hero — otherwise a visitor deep in the services grid has to scroll
               all the way back up to change mode. */}
           <IndustrySelector compact />
+          {/* Uses next/link, not the hero's on-page estimate action — this is a
+              real route change to /login, and prefetching it keeps the sign-in
+              step instant. */}
+          <Link
+            href="/login"
+            className="font-mono text-[12px] uppercase tracking-widest2 text-muted transition-colors duration-200 hover:text-white"
+          >
+            Sign In
+          </Link>
           <button onClick={onGetEstimate} className="btn-apex px-5 py-2.5 text-[11px]">
             Get Estimate
           </button>
@@ -183,6 +196,14 @@ export default function Navbar({ onGetEstimate }: { onGetEstimate: () => void })
           >
             Get Estimate
           </button>
+
+          <Link
+            href="/login"
+            onClick={() => setMobileOpen(false)}
+            className="btn-ghost mt-3 w-full"
+          >
+            Sign In
+          </Link>
         </div>
       )}
     </header>

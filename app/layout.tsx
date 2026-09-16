@@ -103,6 +103,12 @@ export const viewport: Viewport = {
   colorScheme: 'dark',
   width: 'device-width',
   initialScale: 1,
+  // Lay the page out edge to edge on notched phones. Without this the
+  // installed app is inset below the (translucent) status bar, so scrolled
+  // content shows through that strip UNBLURRED while the sticky header below
+  // it blurs — the "clear band above the banner". With it, env(safe-area-
+  // inset-*) is real: the app header pads its top and the tab bar its bottom.
+  viewportFit: 'cover',
 };
 
 // Apple splash screens (the per-device `apple-touch-startup-image` <link>

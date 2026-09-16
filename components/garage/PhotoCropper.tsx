@@ -173,34 +173,34 @@ export default function PhotoCropper({
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         >
-          {src && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              ref={imgRef}
-              src={src}
-              alt=""
-              draggable={false}
-              onLoad={(e) => {
-                const el = e.currentTarget;
-                setNatural({ w: el.naturalWidth, h: el.naturalHeight });
-                setOffset({ x: 0, y: 0 });
-                setZoom(1);
-              }}
-              onError={() => setError('That image could not be opened. Try a JPEG or PNG.')}
-              className="pointer-events-none absolute left-1/2 top-1/2 max-w-none"
-              style={{
-                width: drawnW || undefined,
-                height: drawnH || undefined,
-                transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
-              }}
-            />
-          )}
-          {/* Same fade the card will apply, so the customer frames the
-              photo knowing the bottom will dissolve into the card. */}
-          <div
-            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-obsidian/40 to-obsidian"
-            aria-hidden="true"
-          />
+          {/* `.photo-fade` on the wrapper: the SAME mask the card applies, so
+              the customer frames the photo seeing exactly how its bottom
+              third will dissolve into the description. The wrapper carries it
+              (not the moving <img>) so the fade stays put while they pan. */}
+          <div className="photo-fade absolute inset-0" aria-hidden="true">
+            {src && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                ref={imgRef}
+                src={src}
+                alt=""
+                draggable={false}
+                onLoad={(e) => {
+                  const el = e.currentTarget;
+                  setNatural({ w: el.naturalWidth, h: el.naturalHeight });
+                  setOffset({ x: 0, y: 0 });
+                  setZoom(1);
+                }}
+                onError={() => setError('That image could not be opened. Try a JPEG or PNG.')}
+                className="pointer-events-none absolute left-1/2 top-1/2 max-w-none"
+                style={{
+                  width: drawnW || undefined,
+                  height: drawnH || undefined,
+                  transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
+                }}
+              />
+            )}
+          </div>
         </div>
 
         <label className="flex w-full max-w-xl items-center gap-3 text-[11px] font-mono uppercase tracking-widest2 text-subtle">

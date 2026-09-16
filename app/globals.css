@@ -152,6 +152,24 @@ select.input-field:not(:disabled) {
   color: var(--text-on-input);
 }
 
+/* ───────────────────────────────────────────────────────────────────────────
+   VEHICLE PHOTO FADE
+   ───────────────────────────────────────────────────────────────────────────
+   A mask on the IMAGE ITSELF rather than a dark gradient painted over it. A
+   painted gradient has to end in some solid colour, and no solid colour
+   matches a translucent card sitting on a textured page — so it left a hard
+   line where the photo stopped and the card began. Masking makes the bottom of
+   the photo genuinely transparent: the card's own background shows through,
+   whatever it is, and there is nothing to draw a line against.
+
+   Solid to 55%, gone by the bottom — the last ~30% is where it dissolves into
+   the description below. Used by components/garage/VehiclePhoto.tsx and
+   previewed identically in PhotoCropper.tsx. */
+.photo-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0.55) 75%, rgba(0, 0, 0, 0.12) 92%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 55%, rgba(0, 0, 0, 0.55) 75%, rgba(0, 0, 0, 0.12) 92%, transparent 100%);
+}
+
 /* Native date inputs. iOS Safari and Chrome give <input type="date"> an
    intrinsic minimum width wider than a phone-width grid column, so the field
    ran past its card. min-width:0 + appearance:none lets it shrink to the same

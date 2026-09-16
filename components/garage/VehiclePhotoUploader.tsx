@@ -21,7 +21,7 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import clsx from 'clsx';
 import PhotoCropper from './PhotoCropper';
-import { VehiclePhotoHeader } from './VehiclePhoto';
+import { VEHICLE_PHOTO_ASPECT_CLASS, VehiclePhotoHeader } from './VehiclePhoto';
 
 /**
  * No HEIC here on purpose. When the accept list omits it, iOS converts HEIC
@@ -31,8 +31,12 @@ import { VehiclePhotoHeader } from './VehiclePhoto';
  */
 const ACCEPT = 'image/jpeg,image/png,image/webp';
 
-/** The band is 2:1 — the shape of the garage card header on a phone. */
-export const VEHICLE_PHOTO_ASPECT = 2;
+/**
+ * 7:4 — must match VEHICLE_PHOTO_ASPECT_CLASS in VehiclePhoto.tsx. Taller
+ * than a 2:1 strip because the bottom ~30% of the band dissolves into the
+ * card, so the crop needs headroom above that for the vehicle itself.
+ */
+export const VEHICLE_PHOTO_ASPECT = 7 / 4;
 
 export default function VehiclePhotoUploader({
   vehicleId,
@@ -137,7 +141,7 @@ export default function VehiclePhotoUploader({
           onClick={() => inputRef.current?.click()}
           className={clsx(
             'flex w-full flex-col items-center justify-center gap-1.5 border-b border-dashed border-white/15 bg-white/[0.02] text-muted transition-colors hover:bg-white/[0.05] hover:text-white disabled:opacity-50',
-            height ?? 'h-40'
+            height ?? VEHICLE_PHOTO_ASPECT_CLASS
           )}
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
