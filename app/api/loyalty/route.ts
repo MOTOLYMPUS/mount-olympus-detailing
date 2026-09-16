@@ -13,6 +13,7 @@
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api';
 import { LOYALTY_TIERS, TIER_DISCOUNT, TIER_THRESHOLDS } from '@/lib/models';
+import { listCoupons } from '@/lib/repo/coupons';
 import { ensureLoyaltyAccount, listLoyaltyEvents } from '@/lib/repo/loyalty';
 
 export const runtime = 'nodejs';
@@ -30,7 +31,10 @@ export const GET = withAuth('any', async ({ user, query }) => {
   return NextResponse.json({
     ok: true,
     account,
-    discountPct: TIER_DISCOUNT[account.tier],
+    // The coupon percent granted on reaching the current tier — a one-time
+    // reward, not a standing rate. Actual usable coupons are in `coupons`.
+    tierCouponPct: TIER_DISCOUNT[account.tier],
+    coupons: listCoupons(user.id),
     nextTier,
     nextThreshold,
     pointsToNextTier: nextThreshold ? Math.max(0, nextThreshold - account.lifetimePoints) : 0,

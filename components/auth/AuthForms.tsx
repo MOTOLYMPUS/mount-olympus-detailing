@@ -208,7 +208,7 @@ export function RegisterForm() {
           value={referralCode}
           onChange={setReferralCode}
           maxLength={8}
-          hint="Optional — if a friend sent you, they get rewarded."
+          hint="Optional — 10% off your first booking, and your friend gets 10% too."
         />
 
         {/* TCPA: consent must be an explicit, unchecked-by-default opt-in.

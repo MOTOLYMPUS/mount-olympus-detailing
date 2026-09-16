@@ -17,6 +17,7 @@ import {
   MembershipPlan,
   TIER_THRESHOLDS,
 } from '../models';
+import { grantTierCoupon } from './coupons';
 
 /** Unambiguous alphabet — no O/0/I/1 — so a code can be read over the phone. */
 function referralCode(): string {
@@ -130,6 +131,15 @@ export function award(input: AwardInput): LoyaltyAccount {
   } catch (e) {
     db.exec('ROLLBACK');
     throw e;
+  }
+
+  // Reaching a tier earns its one-time coupon. Every tier crossed by this
+  // award is granted — a big first job can carry someone straight past Silver
+  // into Gold, and they reached both. grantTierCoupon is idempotent per tier.
+  for (const t of LOYALTY_TIERS) {
+    if (TIER_THRESHOLDS[t] > account.lifetimePoints && TIER_THRESHOLDS[t] <= nextLifetime) {
+      grantTierCoupon(input.userId, t);
+    }
   }
 
   return getLoyaltyAccount(input.userId)!;

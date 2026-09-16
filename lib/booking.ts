@@ -13,7 +13,7 @@
 import { ApiError } from './api';
 import { assertBookable, durationForHours, withinCancellationWindow } from './availability';
 import { calculateEstimate } from './pricing';
-import { Appointment, LocationType, TIER_DISCOUNT, User } from './models';
+import { Appointment, LocationType, User } from './models';
 import { Industry, SizeClass } from './types';
 import {
   cancelAppointment,
@@ -25,7 +25,14 @@ import { ensureJob, getJobByAppointment } from './repo/jobs';
 import { getVehicle } from './repo/vehicles';
 import { getUser } from './repo/users';
 import { getPriceOverrides } from './repo/pricing';
-import { activeMembership, award, ensureLoyaltyAccount, getLoyaltyAccount } from './repo/loyalty';
+import { activeMembership, award, ensureLoyaltyAccount } from './repo/loyalty';
+import {
+  bestAvailableCoupon,
+  consumeCoupon,
+  couponLabel,
+  releaseCoupon,
+  unlockReferrerCoupons,
+} from './repo/coupons';
 import { getSchedulingConfig, getServiceArea } from './repo/settings';
 import { getService } from '@/data/pricing';
 import {
@@ -60,14 +67,24 @@ export interface PricedBooking {
   quotedTotalMax: number;
   estimatedHours: number;
   durationMinutes: number;
+  /** Standing membership discount, percent. */
   discountPercent: number;
+  /** One-time coupon applied on top, percent (0 when none). */
+  couponPercent: number;
+  couponId: string | null;
+  couponLabel: string | null;
   isPlaceholderPricing: boolean;
 }
 
 /**
- * Recompute price and duration from the catalogue, then apply the customer's
- * standing discount (membership plan or loyalty tier, whichever is better —
- * never both, which would compound into an unintended giveaway).
+ * Recompute price and duration from the catalogue, then apply:
+ *   1. the customer's STANDING discount — a membership plan, if they have one;
+ *   2. their best available ONE-TIME coupon (tier reward or referral), on top.
+ *
+ * Loyalty tiers are not a standing discount any more: reaching a tier grants
+ * a coupon (lib/repo/coupons.ts), so the tier shows up here only as a coupon.
+ * This only READS the coupon (it prices previews too); createBooking is what
+ * marks it used.
  */
 export function priceBooking(input: {
   customerId: string;
@@ -92,13 +109,14 @@ export function priceBooking(input: {
   }
 
   const membership = activeMembership(input.customerId);
-  const loyalty = getLoyaltyAccount(input.customerId);
-  const discountPercent = Math.max(
-    membership?.plan.discountPct ?? 0,
-    loyalty ? TIER_DISCOUNT[loyalty.tier] : 0
-  );
+  const discountPercent = membership?.plan.discountPct ?? 0;
 
-  const apply = (n: number) => Math.round(n * (1 - discountPercent / 100));
+  const coupon = bestAvailableCoupon(input.customerId);
+  const couponPercent = coupon?.percent ?? 0;
+
+  // Standing discount first, then the coupon on what is left.
+  const apply = (n: number) =>
+    Math.round(n * (1 - discountPercent / 100) * (1 - couponPercent / 100));
 
   return {
     quotedTotal: apply(estimate.total),
@@ -106,6 +124,9 @@ export function priceBooking(input: {
     estimatedHours: estimate.estimatedHours,
     durationMinutes: durationForHours(estimate.estimatedHours),
     discountPercent,
+    couponPercent,
+    couponId: coupon?.id ?? null,
+    couponLabel: coupon ? couponLabel(coupon) : null,
     isPlaceholderPricing: estimate.isPlaceholderPricing,
   };
 }
@@ -199,6 +220,15 @@ export async function createBooking(
   }
 
   ensureLoyaltyAccount(customer.id);
+
+  // The coupon priced into this booking is spent now. If it was raced away
+  // between pricing and here the price still stands — a customer is never
+  // charged more than the number they were shown.
+  if (pricing.couponId) consumeCoupon(pricing.couponId, appointment.id);
+
+  // A first booking is proof a referred sign-up was real: it unlocks the
+  // referrer's pending coupon (no-op for everyone else).
+  unlockReferrerCoupons(customer.id);
 
   audit({
     actorId: actor.id,
@@ -307,6 +337,9 @@ export async function cancelBooking(
   }
 
   const cancelled = cancelAppointment(appointment.id, reason)!;
+
+  // A coupon spent on a booking that never happened goes back to the customer.
+  releaseCoupon(appointment.id);
 
   audit({
     actorId: actor.id,

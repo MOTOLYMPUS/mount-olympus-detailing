@@ -11,6 +11,7 @@ import { fail, ok, withAuth } from '@/lib/api';
 import { createVehicle, listVehicles } from '@/lib/repo/vehicles';
 import { validateVehicle } from '@/lib/validation-account';
 import { canManage } from '@/lib/rbac';
+import { unlockReferrerCoupons } from '@/lib/repo/coupons';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,5 +30,10 @@ export const POST = withAuth('any', async ({ user, body }) => {
   // read from the body — a customer cannot add a vehicle to someone else's
   // account, and staff adding one on the phone go through the admin route.
   const vehicle = createVehicle(user.id, result.value);
+
+  // Adding a vehicle is proof a referred sign-up was real: it unlocks the
+  // referrer's pending coupon (no-op for everyone else).
+  unlockReferrerCoupons(user.id);
+
   return ok({ vehicle }, { status: 201 });
 });

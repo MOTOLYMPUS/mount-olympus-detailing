@@ -292,13 +292,51 @@ export const TIER_THRESHOLDS: Record<LoyaltyTier, number> = {
   platinum: 4000,
 };
 
-/** Standing discount granted by tier, in percent. */
+/**
+ * The ONE-TIME coupon a customer is granted on reaching each tier, in percent
+ * off a single booking. Not a standing discount: reaching Gold earns one 10%
+ * coupon, which never expires and is spent on the next booking.
+ */
 export const TIER_DISCOUNT: Record<LoyaltyTier, number> = {
   bronze: 0,
   silver: 5,
-  gold: 8,
-  platinum: 12,
+  gold: 10,
+  platinum: 20,
 };
+
+// ── Coupons ──────────────────────────────────────────────────────────────────
+// Every loyalty reward is a one-time percentage off one booking, never a
+// standing discount, and none of them expire. Two kinds:
+//   tier      granted when lifetime points reach a tier (TIER_DISCOUNT).
+//   referral  both sides of a referral get REFERRAL_DISCOUNT_PERCENT. The new
+//             customer's is available the moment they sign up with the code;
+//             the referrer's unlocks only once that person adds a vehicle or
+//             books — a sign-up that never does either earns nothing.
+
+/** Percent off one booking, for each party of a referral. */
+export const REFERRAL_DISCOUNT_PERCENT = 10;
+
+export type CouponKind = 'tier' | 'referral';
+export type CouponStatus = 'pending' | 'available' | 'used';
+export type ReferralRole = 'referrer' | 'referee';
+
+export interface Coupon {
+  id: string;
+  /** Who receives the discount. */
+  userId: string;
+  kind: CouponKind;
+  percent: number;
+  status: CouponStatus;
+  /** Tier coupons: the tier that earned it. */
+  tier: LoyaltyTier | null;
+  /** Referral coupons: the other party and which side this customer was. */
+  otherUserId: string | null;
+  role: ReferralRole | null;
+  appointmentId: string | null;
+  createdAt: string;
+  unlockedAt: string | null;
+  usedAt: string | null;
+}
 
 export interface LoyaltyAccount {
   userId: string;
@@ -381,6 +419,78 @@ export interface Invoice {
   issuedAt: string | null;
   paidAt: string | null;
   createdAt: string;
+}
+
+// ── Expenses (owner bookkeeping) ─────────────────────────────────────────────
+// Categories mirror the common lines of an IRS Schedule C so the year-end CSV
+// drops straight into a return or a bookkeeper's hands. `id` values are stable
+// and MUST NOT be renamed once expenses reference them — the label is what
+// changes if the wording needs to.
+
+export type ExpenseCategory =
+  | 'supplies'
+  | 'equipment'
+  | 'vehicle'
+  | 'fuel'
+  | 'insurance'
+  | 'rent'
+  | 'utilities'
+  | 'advertising'
+  | 'software'
+  | 'fees'
+  | 'contract_labor'
+  | 'meals'
+  | 'travel'
+  | 'taxes_licenses'
+  | 'other';
+
+export interface ExpenseCategoryDef {
+  id: ExpenseCategory;
+  label: string;
+  /** The Schedule C line this maps to, shown as a hint in the UI. */
+  scheduleC: string;
+}
+
+export const EXPENSE_CATEGORIES: ExpenseCategoryDef[] = [
+  { id: 'supplies', label: 'Supplies & chemicals', scheduleC: 'Line 22 — Supplies' },
+  { id: 'equipment', label: 'Equipment & tools', scheduleC: 'Line 13 — Depreciation / §179' },
+  { id: 'vehicle', label: 'Vehicle (repairs, maint.)', scheduleC: 'Line 9 — Car & truck' },
+  { id: 'fuel', label: 'Fuel', scheduleC: 'Line 9 — Car & truck' },
+  { id: 'insurance', label: 'Insurance', scheduleC: 'Line 15 — Insurance' },
+  { id: 'rent', label: 'Rent / storage / bay', scheduleC: 'Line 20 — Rent or lease' },
+  { id: 'utilities', label: 'Utilities & phone', scheduleC: 'Line 25 — Utilities' },
+  { id: 'advertising', label: 'Advertising & marketing', scheduleC: 'Line 8 — Advertising' },
+  { id: 'software', label: 'Software & subscriptions', scheduleC: 'Line 27a — Other' },
+  { id: 'fees', label: 'Payment processing & bank fees', scheduleC: 'Line 27a — Other' },
+  { id: 'contract_labor', label: 'Contract labor', scheduleC: 'Line 11 — Contract labor' },
+  { id: 'meals', label: 'Meals (business)', scheduleC: 'Line 24b — Meals (50%)' },
+  { id: 'travel', label: 'Travel', scheduleC: 'Line 24a — Travel' },
+  { id: 'taxes_licenses', label: 'Taxes & licenses', scheduleC: 'Line 23 — Taxes & licenses' },
+  { id: 'other', label: 'Other', scheduleC: 'Line 27a — Other' },
+];
+
+export const EXPENSE_CATEGORY_IDS = EXPENSE_CATEGORIES.map((c) => c.id);
+
+export function expenseCategoryLabel(id: string): string {
+  return EXPENSE_CATEGORIES.find((c) => c.id === id)?.label ?? id;
+}
+
+export interface Expense {
+  id: string;
+  /** Date the money was spent (YYYY-MM-DD), not when the row was created. */
+  spentOn: string;
+  category: ExpenseCategory;
+  amountCents: number;
+  vendor: string;
+  note: string;
+  /** Whether the owner is treating this as tax-deductible. */
+  deductible: boolean;
+  /** Optional stored receipt image/PDF, via lib/uploads.ts. */
+  receiptKey: string | null;
+  /** Who recorded it — every expense is attributable in the audit trail. */
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // ── Messaging ────────────────────────────────────────────────────────────────

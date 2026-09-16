@@ -12,13 +12,14 @@ import { CopyReferral, PlanActions } from '@/components/app/RewardsActions';
 import { Card, CardTitle, EmptyState, Field, PageHeader, StatTile } from '@/components/ui';
 import { siteUrl } from '@/lib/business';
 import { requirePage } from '@/lib/guards';
-import { LOYALTY_TIERS, TIER_DISCOUNT, TIER_THRESHOLDS } from '@/lib/models';
+import { LOYALTY_TIERS, REFERRAL_DISCOUNT_PERCENT, TIER_DISCOUNT, TIER_THRESHOLDS } from '@/lib/models';
 import {
   activeMembership,
   ensureLoyaltyAccount,
   listLoyaltyEvents,
   listPlans,
 } from '@/lib/repo/loyalty';
+import { couponLabel, listCoupons } from '@/lib/repo/coupons';
 import { stripeConfigured } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
@@ -44,6 +45,9 @@ export default async function RewardsPage() {
   const events = listLoyaltyEvents(user.id, 50);
   const plans = listPlans(true);
   const membership = activeMembership(user.id);
+  const coupons = listCoupons(user.id);
+  const availableCoupons = coupons.filter((c) => c.status === 'available');
+  const pendingReferrals = coupons.filter((c) => c.kind === 'referral' && c.status === 'pending');
 
   const tierIndex = LOYALTY_TIERS.indexOf(account.tier);
   const nextTier = LOYALTY_TIERS[tierIndex + 1] ?? null;
@@ -69,7 +73,7 @@ export default async function RewardsPage() {
       <PageHeader
         eyebrow="Loyalty"
         title="Rewards"
-        description="Points on every completed job, a standing discount as you move up, and credit for everyone you send our way."
+        description="Points on every completed job, a one-time coupon at every tier you reach, and 10% off for you and everyone you send our way."
       />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-3">
@@ -78,9 +82,9 @@ export default async function RewardsPage() {
           label="Tier"
           value={TIER_LABEL[account.tier] ?? account.tier}
           sub={
-            TIER_DISCOUNT[account.tier] > 0
-              ? `${TIER_DISCOUNT[account.tier]}% off every service`
-              : 'No discount yet'
+            availableCoupons.length > 0
+              ? `${availableCoupons.length} coupon${availableCoupons.length === 1 ? '' : 's'} ready to use`
+              : 'Reach the next tier for a coupon'
           }
         />
         <StatTile
@@ -100,7 +104,7 @@ export default async function RewardsPage() {
                 {nextThreshold - account.lifetimePoints} points to {TIER_LABEL[nextTier]}
               </span>
               <span className="font-mono text-[12px] text-subtle">
-                {TIER_DISCOUNT[nextTier]}% off at {TIER_LABEL[nextTier]}
+                {TIER_DISCOUNT[nextTier]}% coupon at {TIER_LABEL[nextTier]}
               </span>
             </div>
             <div
@@ -116,8 +120,60 @@ export default async function RewardsPage() {
           </>
         ) : (
           <p className="py-2 text-sm text-muted">
-            You are at the top tier — {TIER_DISCOUNT[account.tier]}% off every service.
+            You are at the top tier. Every tier you reached earned a one-time coupon — see
+            yours below.
           </p>
+        )}
+      </Card>
+
+      {/* ── Coupons ─────────────────────────────────────────────────────────── */}
+      <Card className="mb-6">
+        <CardTitle
+          action={
+            <span className="font-mono text-[11px] text-muted">
+              {availableCoupons.length} ready
+            </span>
+          }
+        >
+          Your coupons
+        </CardTitle>
+        <p className="mb-4 text-sm text-muted">
+          Each tier you reach and each friend you refer earns a one-time percentage off a
+          booking. Coupons never expire; the best one you have is applied automatically to your
+          next booking.
+        </p>
+        {coupons.length === 0 ? (
+          <p className="py-2 text-sm text-subtle">
+            No coupons yet — reach {TIER_LABEL.silver} ({TIER_THRESHOLDS.silver} lifetime points)
+            for your first {TIER_DISCOUNT.silver}% coupon, or refer a friend.
+          </p>
+        ) : (
+          <ul className="divide-y divide-white/5">
+            {coupons.map((c) => (
+              <li key={c.id} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0">
+                  <p className="text-sm text-white">{couponLabel(c)}</p>
+                  <p className="text-[12px] text-subtle">
+                    {c.status === 'available' && 'Ready — applied to your next booking'}
+                    {c.status === 'pending' && 'Unlocks when your friend adds a vehicle or books'}
+                    {c.status === 'used' &&
+                      `Used${c.usedAt ? ` on ${new Date(c.usedAt).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' })}` : ''}`}
+                  </p>
+                </div>
+                <span
+                  className={
+                    c.status === 'available'
+                      ? 'shrink-0 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest2 text-emerald-300'
+                      : c.status === 'pending'
+                        ? 'shrink-0 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest2 text-amber-200'
+                        : 'shrink-0 rounded-full border border-white/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest2 text-subtle'
+                  }
+                >
+                  {c.status}
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
       </Card>
 
@@ -125,7 +181,11 @@ export default async function RewardsPage() {
       <Card className="mb-6">
         <CardTitle>Refer a friend</CardTitle>
         <p className="mb-4 text-sm text-muted">
-          Share your code. When someone registers with it, you both get points.
+          Share your code. Your friend gets {REFERRAL_DISCOUNT_PERCENT}% off their first booking
+          the moment they sign up with it, and you get a {REFERRAL_DISCOUNT_PERCENT}% coupon once
+          they add a vehicle or book a service.
+          {pendingReferrals.length > 0 &&
+            ` ${pendingReferrals.length} referral${pendingReferrals.length === 1 ? ' is' : 's are'} waiting on that step.`}
         </p>
         <CopyReferral code={account.referralCode} link={referralLink} />
         <p className="mt-3 break-all font-mono text-[11px] text-subtle">{referralLink}</p>
@@ -166,7 +226,7 @@ export default async function RewardsPage() {
         {events.length === 0 ? (
           <EmptyState
             title="No activity yet"
-            description="Points land here after your first completed service, or when someone uses your referral code."
+            description="Points land here after each completed service. Referral rewards are coupons, listed above."
           />
         ) : (
           <ul className="divide-y divide-white/5">

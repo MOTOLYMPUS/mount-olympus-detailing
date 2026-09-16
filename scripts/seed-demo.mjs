@@ -216,7 +216,7 @@ for (const a of created.slice(0, Math.max(1, created.length - 1))) {
   });
   console.log(`  Appointments     ${appts.data.appointments.length}`);
   console.log(`  Loyalty points   ${l.points}   (lifetime ${l.lifetimePoints})`);
-  console.log(`  Tier             ${l.tier}  ->  ${l.tierDiscountPercent}% off every booking`);
+  console.log(`  Tier             ${l.tier}  ->  ${l.tierCouponPercent}% one-time coupon on reaching it`);
   console.log(`  Referral code    ${l.referralCode}`);
   console.log('');
   console.log('  SIGN IN AS THIS CUSTOMER');

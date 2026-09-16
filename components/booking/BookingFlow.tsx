@@ -719,8 +719,8 @@ export default function BookingFlow({
               </div>
 
               <p className="mt-4 text-[11px] leading-relaxed text-subtle">
-                Any loyalty or membership discount is applied when the booking is created — the
-                figure on your confirmation may be lower than this.
+                Any membership discount or reward coupon you have is applied when the booking is
+                created — the figure on your confirmation may be lower than this.
               </p>
             </>
           )}

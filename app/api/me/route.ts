@@ -19,6 +19,7 @@ import { totalUnread } from '@/lib/repo/messages';
 import { listAppointments } from '@/lib/repo/appointments';
 import { isStaff } from '@/lib/rbac';
 import { TIER_DISCOUNT, toPublicUser } from '@/lib/models';
+import { bestAvailableCoupon, couponLabel } from '@/lib/repo/coupons';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,6 +27,7 @@ export const dynamic = 'force-dynamic';
 export const GET = withAuth('any', async ({ user }) => {
   const loyalty = ensureLoyaltyAccount(user.id);
   const membership = activeMembership(user.id);
+  const coupon = bestAvailableCoupon(user.id);
 
   const upcoming = listAppointments({
     ...(isStaff(user.role) ? { employeeId: user.id } : { customerId: user.id }),
@@ -41,8 +43,11 @@ export const GET = withAuth('any', async ({ user }) => {
       points: loyalty.points,
       lifetimePoints: loyalty.lifetimePoints,
       tier: loyalty.tier,
-      tierDiscountPercent: TIER_DISCOUNT[loyalty.tier],
+      // The coupon this tier granted (a one-time reward, not a standing rate).
+      tierCouponPercent: TIER_DISCOUNT[loyalty.tier],
       referralCode: loyalty.referralCode,
+      // Best coupon that will apply to the next booking, if any.
+      coupon: coupon ? { percent: coupon.percent, label: couponLabel(coupon) } : null,
     },
     membership: membership
       ? { name: membership.plan.name, discountPct: membership.plan.discountPct, renewsAt: membership.renewsAt }

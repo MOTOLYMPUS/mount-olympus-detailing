@@ -10,7 +10,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { attachSessionCookie, checkPasswordPolicy, hashPassword, startSession } from '@/lib/auth';
 import { createUser, getUserByEmail } from '@/lib/repo/users';
-import { ensureLoyaltyAccount, findByReferralCode, award } from '@/lib/repo/loyalty';
+import { ensureLoyaltyAccount, findByReferralCode } from '@/lib/repo/loyalty';
+import { createReferralCoupons } from '@/lib/repo/coupons';
 import { createVehicle, countVehicles } from '@/lib/repo/vehicles';
 import { listEstimateRequestsByEmail } from '@/lib/db';
 import { AUDIT, audit } from '@/lib/repo/audit';
@@ -22,9 +23,6 @@ import { toPublicUser } from '@/lib/models';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-/** Points granted to the referrer once their friend signs up. */
-const REFERRAL_BONUS = 250;
 
 export async function POST(req: NextRequest) {
   const ipHash = hashIp(clientIp(req.headers));
@@ -84,13 +82,11 @@ export async function POST(req: NextRequest) {
   const referrer = input.referralCode ? findByReferralCode(input.referralCode) : null;
   ensureLoyaltyAccount(user.id, referrer?.userId ?? null);
 
+  // Referral reward is a pair of one-time coupons, not points: the new
+  // customer's is usable now; the referrer's unlocks once this account adds a
+  // vehicle or books (see lib/repo/coupons.ts).
   if (referrer && referrer.userId !== user.id) {
-    award({
-      userId: referrer.userId,
-      points: REFERRAL_BONUS,
-      kind: 'referral',
-      note: `Referred ${user.name}`,
-    });
+    createReferralCoupons(user.id, referrer.userId);
   }
 
   // ── Seed the garage from their estimate ─────────────────────────────────────

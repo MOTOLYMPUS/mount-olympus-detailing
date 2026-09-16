@@ -26,6 +26,7 @@ import { isStaff } from '@/lib/rbac';
 import { listAppointments } from '@/lib/repo/appointments';
 import { listVehicles } from '@/lib/repo/vehicles';
 import { ensureLoyaltyAccount, activeMembership } from '@/lib/repo/loyalty';
+import { bestAvailableCoupon, couponLabel } from '@/lib/repo/coupons';
 import { listPhotosForCustomer } from '@/lib/repo/jobs';
 import { listEstimateRequestsByEmail } from '@/lib/db';
 import { listInvoices } from '@/lib/repo/payments';
@@ -34,7 +35,7 @@ import { buildReminders, recommendServices } from '@/lib/recommendations';
 import { formatCurrency, formatPrice } from '@/lib/pricing';
 import { formatDateTime, relativeTime } from '@/lib/timezone';
 import { getService } from '@/data/pricing';
-import { TIER_DISCOUNT, TIER_THRESHOLDS, vehicleLabel } from '@/lib/models';
+import { TIER_THRESHOLDS, vehicleLabel } from '@/lib/models';
 import {
   Alert,
   Badge,
@@ -71,6 +72,7 @@ export default async function DashboardPage() {
   const past = listAppointments({ customerId: user.id, direction: 'past', limit: 20 });
   const loyalty = ensureLoyaltyAccount(user.id);
   const membership = activeMembership(user.id);
+  const coupon = bestAvailableCoupon(user.id);
   const photos = listPhotosForCustomer(user.id, 8);
   const estimates = listEstimateRequestsByEmail(user.email, 5);
   const invoices = listInvoices({ userId: user.id, limit: 5 });
@@ -234,9 +236,9 @@ export default async function DashboardPage() {
             <Badge tone="info">{loyalty.tier}</Badge>
           </div>
 
-          {TIER_DISCOUNT[loyalty.tier] > 0 && (
+          {coupon && (
             <p className="mt-2 text-[13px] text-emerald-400">
-              {TIER_DISCOUNT[loyalty.tier]}% off every booking at this tier.
+              {couponLabel(coupon)} — applied to your next booking.
             </p>
           )}
 

@@ -292,6 +292,33 @@ CREATE TABLE IF NOT EXISTS loyalty_events (
 );
 CREATE INDEX IF NOT EXISTS idx_loyalty_user ON loyalty_events (user_id, created_at DESC);
 
+-- ONE-TIME percentage-off coupons. They never expire. Two kinds:
+--   tier      granted the moment a customer's lifetime points reach a tier
+--             (silver/gold/platinum) — the tier's reward is this coupon, not a
+--             standing discount.
+--   referral  when someone signs up with a referral code, two rows: the NEW
+--             customer's coupon (available at once) and the REFERRER's coupon
+--             (pending until the new customer adds a vehicle or books — an
+--             account that never does either earns the referrer nothing).
+-- The best available coupon is spent by the customer's next booking and
+-- released again if that booking is cancelled.
+CREATE TABLE IF NOT EXISTS coupons (
+  id             TEXT PRIMARY KEY,
+  user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- who gets the discount
+  kind           TEXT NOT NULL,   -- tier|referral
+  percent        INTEGER NOT NULL,
+  status         TEXT NOT NULL,   -- pending|available|used
+  tier           TEXT,            -- tier coupons: which tier earned it
+  other_user_id  TEXT,            -- referral coupons: the other party
+  role           TEXT,            -- referral coupons: referrer|referee
+  appointment_id TEXT,
+  created_at     TEXT NOT NULL,
+  unlocked_at    TEXT,
+  used_at        TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_coupons_user ON coupons (user_id, status);
+CREATE INDEX IF NOT EXISTS idx_coupons_other ON coupons (other_user_id, role, status);
+
 CREATE TABLE IF NOT EXISTS membership_plans (
   id            TEXT PRIMARY KEY,
   name          TEXT NOT NULL,
@@ -472,6 +499,23 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_ratelimit ON rate_limits (bucket, subject, created_at);
+
+-- ── Business expenses (owner bookkeeping, admin-only) ───────────────────────
+CREATE TABLE IF NOT EXISTS expenses (
+  id           TEXT PRIMARY KEY,
+  spent_on     TEXT NOT NULL,               -- YYYY-MM-DD, the date of spend
+  category     TEXT NOT NULL DEFAULT 'other',
+  amount_cents INTEGER NOT NULL,
+  vendor       TEXT NOT NULL DEFAULT '',
+  note         TEXT NOT NULL DEFAULT '',
+  deductible   INTEGER NOT NULL DEFAULT 1,
+  receipt_key  TEXT,
+  created_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses (spent_on DESC);
+CREATE INDEX IF NOT EXISTS idx_expenses_cat  ON expenses (category, spent_on DESC);
 `;
 
 function connect(): DatabaseSync {
