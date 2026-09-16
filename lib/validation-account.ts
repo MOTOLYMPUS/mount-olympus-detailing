@@ -35,6 +35,8 @@ export interface RegisterInput {
   phone: string;
   password: string;
   smsConsent: boolean;
+  /** Push notifications — ON unless the form explicitly sent false. */
+  pushOptIn: boolean;
   referralCode: string;
 }
 
@@ -67,6 +69,8 @@ export function validateRegistration(body: unknown): Validated<RegisterInput> {
       phone,
       password,
       smsConsent: b.smsConsent === true,
+      // Opt-OUT semantics, unlike SMS: absent or anything but false means on.
+      pushOptIn: b.pushOptIn !== false,
       referralCode: str(b.referralCode, 12).toUpperCase(),
     },
   };
@@ -79,6 +83,8 @@ export interface ProfileInput {
   phone: string;
   address: string;
   smsConsent: boolean;
+  /** Only written when the form sends a boolean; otherwise left unchanged. */
+  pushOptIn?: boolean;
 }
 
 export function validateProfile(body: unknown): Validated<ProfileInput> {
@@ -101,6 +107,7 @@ export function validateProfile(body: unknown): Validated<ProfileInput> {
       phone,
       address: str(b.address, 200),
       smsConsent: b.smsConsent === true,
+      pushOptIn: typeof b.pushOptIn === 'boolean' ? b.pushOptIn : undefined,
     },
   };
 }

@@ -1,83 +1,47 @@
 'use client';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Push-notification opt-in/out toggle for Settings (app/app/profile).
+// Push-notification toggle for Profile.
 //
-// Flow to turn on: ask Notification permission → fetch the VAPID public key
-// from GET /api/push/vapid → PushManager.subscribe() with it as the
-// applicationServerKey → POST the resulting subscription to
-// /api/push/subscribe. Every step degrades to an explanatory message rather
-// than a dead button — unsupported browser, iOS not installed to the home
-// screen, push not configured server-side, or permission already denied are
-// all distinct, named states below.
+// Two things are tracked and shown together:
+//   • the account PREFERENCE (users.push_opt_in — on by default for every
+//     new account), which is what the customer is really switching here;
+//   • whether THIS browser is actually enrolled (a push subscription exists),
+//     which needs the browser's permission prompt and, on iOS, the app to be
+//     installed to the Home Screen.
+//
+// "Turn off" clears both: the preference (so the in-app nudge stops asking)
+// and this browser's subscription. "Turn on" sets the preference and enrols
+// this browser. All the browser work lives in lib/push-client.ts, shared with
+// the sign-up form and the in-app nudge so the three never drift.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useCallback, useEffect, useState } from 'react';
 import { buttonClass } from '@/components/ui';
+import {
+  hasPushSubscription,
+  pushSupport,
+  setPushOptIn,
+  subscribePush,
+  unsubscribePush,
+  type PushSupport,
+} from '@/lib/push-client';
 
-type Status =
-  | 'checking'
-  | 'unsupported'
-  | 'ios-not-installed'
-  | 'not-configured'
-  | 'denied'
-  | 'off'
-  | 'on';
+type Status = 'checking' | PushSupport | 'not-configured' | 'off' | 'on';
 
-/** `applicationServerKey` must be a Uint8Array — the API returns it base64url-encoded. */
-function base64urlToUint8Array(value: string): Uint8Array {
-  const padded = value + '='.repeat((4 - (value.length % 4)) % 4);
-  const base64 = padded.replace(/-/g, '+').replace(/_/g, '/');
-  const raw = atob(base64);
-  const out = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
-  return out;
-}
-
-function isIosDevice(): boolean {
-  const ua = window.navigator.userAgent;
-  return /iPad|iPhone|iPod/.test(ua) || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
-}
-
-function isStandaloneDisplay(): boolean {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as unknown as { standalone?: boolean }).standalone === true
-  );
-}
-
-export default function PushToggle() {
+export default function PushToggle({ optIn }: { optIn: boolean }) {
+  const [wants, setWants] = useState(optIn);
   const [status, setStatus] = useState<Status>('checking');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
 
   const evaluate = useCallback(async () => {
-    if (typeof window === 'undefined') return;
-
-    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-      setStatus('unsupported');
+    const support = pushSupport();
+    if (support !== 'ready') {
+      setStatus(support);
       return;
     }
-    // iOS/iPadOS Safari only supports web push for a PWA added to the home
-    // screen (16.4+) — inside the regular browser tab, Notification.requestPermission
-    // exists but push silently cannot work, so this is checked before anything else.
-    if (isIosDevice() && !isStandaloneDisplay()) {
-      setStatus('ios-not-installed');
-      return;
-    }
-    if (Notification.permission === 'denied') {
-      setStatus('denied');
-      return;
-    }
-
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      const existing = await reg.pushManager.getSubscription();
-      setStatus(existing ? 'on' : 'off');
-    } catch (e) {
-      console.error('[push] could not read subscription state', e);
-      setStatus('off');
-    }
+    setStatus((await hasPushSubscription()) ? 'on' : 'off');
   }, []);
 
   useEffect(() => {
@@ -88,45 +52,14 @@ export default function PushToggle() {
     setPending(true);
     setError('');
     try {
-      const permission = await Notification.requestPermission();
-      if (permission !== 'granted') {
-        setStatus(permission === 'denied' ? 'denied' : 'off');
-        return;
-      }
-
-      const vapidRes = await fetch('/api/push/vapid');
-      const vapidData = await vapidRes.json().catch(() => ({}));
-      if (!vapidRes.ok || !vapidData.ok || !vapidData.configured) {
-        setStatus('not-configured');
-        return;
-      }
-
-      const reg = await navigator.serviceWorker.ready;
-      const subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true, // required by the spec — every push must show a visible notification
-        // Node 24's lib types make Uint8Array generic over ArrayBufferLike,
-        // which the DOM BufferSource union no longer accepts directly without
-        // a cast — same underlying mismatch as the Buffer/BodyInit fix in
-        // lib/push.ts and app/api/files/[...key]/route.ts.
-        applicationServerKey: base64urlToUint8Array(vapidData.publicKey) as BufferSource,
-      });
-
-      const json = subscription.toJSON();
-      const res = await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
-        setError(data.error ?? 'Could not save your subscription.');
-        return;
-      }
-
-      setStatus('on');
-    } catch (e) {
-      console.error('[push] enabling push failed', e);
-      setError('Something went wrong turning on notifications.');
+      await setPushOptIn(true);
+      setWants(true);
+      const result = await subscribePush();
+      if (result === 'on') setStatus('on');
+      else if (result === 'denied') setStatus('denied');
+      else if (result === 'not-configured') setStatus('not-configured');
+      else if (result === 'error') setError('Something went wrong turning on notifications.');
+      else setStatus('off');
     } finally {
       setPending(false);
     }
@@ -136,23 +69,10 @@ export default function PushToggle() {
     setPending(true);
     setError('');
     try {
-      const reg = await navigator.serviceWorker.ready;
-      const subscription = await reg.pushManager.getSubscription();
-      if (subscription) {
-        const { endpoint } = subscription;
-        await subscription.unsubscribe();
-        await fetch('/api/push/unsubscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ endpoint }),
-        }).catch(() => {
-          // Best-effort — the browser-side unsubscribe already succeeded, so
-          // the user's intent is honored even if this cleanup call fails; a
-          // stale server-side row just means one wasted push attempt later,
-          // handled gracefully by lib/push.ts marking it gone on the next try.
-        });
-      }
-      setStatus('off');
+      await setPushOptIn(false);
+      setWants(false);
+      await unsubscribePush();
+      setStatus(pushSupport() === 'ready' ? 'off' : pushSupport());
     } catch (e) {
       console.error('[push] disabling push failed', e);
       setError('Something went wrong turning off notifications.');
@@ -168,6 +88,13 @@ export default function PushToggle() {
           {error}
         </p>
       )}
+
+      <p className="text-[13px] text-muted">
+        Notifications are{' '}
+        <span className="text-white">{wants ? 'on' : 'off'}</span> for your account.
+        {wants && status === 'on' && ' This device will receive them.'}
+        {wants && status === 'off' && ' This device is not set up yet.'}
+      </p>
 
       {status === 'checking' && <p className="text-[13px] text-subtle">Checking notification support…</p>}
 
@@ -193,20 +120,18 @@ export default function PushToggle() {
         </p>
       )}
 
-      {status === 'off' && (
-        <button type="button" disabled={pending} onClick={enable} className={buttonClass('primary', 'sm')}>
-          {pending ? 'Turning on…' : 'Enable push notifications'}
-        </button>
-      )}
-
-      {status === 'on' && (
-        <div className="flex items-center gap-3">
-          <p className="text-[13px] text-muted">Push notifications are on.</p>
+      <div className="flex flex-wrap items-center gap-3">
+        {(status === 'off' || (!wants && status !== 'checking')) && (
+          <button type="button" disabled={pending} onClick={enable} className={buttonClass('primary', 'sm')}>
+            {pending ? 'Turning on…' : wants ? 'Set up this device' : 'Turn on notifications'}
+          </button>
+        )}
+        {wants && (
           <button type="button" disabled={pending} onClick={disable} className={buttonClass('secondary', 'sm')}>
             {pending ? 'Turning off…' : 'Turn off'}
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

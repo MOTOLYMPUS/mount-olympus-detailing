@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { InputField } from '@/components/Field';
 import { Alert, buttonClass } from '@/components/ui';
+import { pushSupport, subscribePush } from '@/lib/push-client';
 
 interface ApiFailure {
   error?: string;
@@ -153,6 +154,8 @@ export function RegisterForm() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [smsConsent, setSmsConsent] = useState(false);
+  // Push is ON by default (opt-out); SMS stays an explicit opt-in (TCPA).
+  const [pushOptIn, setPushOptIn] = useState(true);
   const [referralCode, setReferralCode] = useState(params.get('ref') ?? '');
 
   // Same safe same-origin check as LoginForm: `next` is attacker-controllable,
@@ -164,15 +167,34 @@ export function RegisterForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // The browser only shows the notification permission prompt from a user
+    // gesture, and this submit is one — so ask NOW, before the network round
+    // trip, on devices where push can work. Enrolment itself happens after
+    // the account exists. On iOS in a browser tab (no push until installed)
+    // the preference is still saved and the app nudges later.
+    let askedPush = false;
+    if (pushOptIn && pushSupport() === 'ready' && Notification.permission === 'default') {
+      askedPush = true;
+      await Notification.requestPermission().catch(() => undefined);
+    }
+
     const { ok } = await submit('/api/auth/register', {
       name,
       email,
       phone,
       password,
       smsConsent,
+      pushOptIn,
       referralCode,
     });
     if (!ok) return;
+
+    if (pushOptIn && (askedPush || Notification.permission === 'granted') && pushSupport() === 'ready') {
+      // Best-effort; never delays or blocks landing in the app.
+      await subscribePush().catch(() => undefined);
+    }
+
     router.replace(next || '/app');
     router.refresh();
   }
@@ -210,6 +232,22 @@ export function RegisterForm() {
           maxLength={8}
           hint="Optional — 10% off your first booking, and your friend gets 10% too."
         />
+
+        {/* Push: on by default (opt-out). Not a legal consent like SMS — the
+            browser asks its own permission question at submit — so a
+            pre-checked box is fine here. */}
+        <label className="flex cursor-pointer items-start gap-3 text-[13px] text-muted">
+          <input
+            type="checkbox"
+            checked={pushOptIn}
+            onChange={(e) => setPushOptIn(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[#D4001A]"
+          />
+          <span>
+            Send me push notifications when a booking is confirmed, moved, or my vehicle is
+            ready. You can turn this off any time in Profile.
+          </span>
+        </label>
 
         {/* TCPA: consent must be an explicit, unchecked-by-default opt-in.
             The estimate flow already works this way; so does this. */}

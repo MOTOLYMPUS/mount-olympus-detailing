@@ -39,6 +39,8 @@ export interface User {
   name: string;
   phone: string;
   smsConsent: boolean;
+  /** Wants push notifications. Defaults on; switchable in Profile. */
+  pushOptIn: boolean;
   emailVerified: boolean;
   active: boolean;
   address: string;
@@ -64,6 +66,7 @@ export interface PublicUser {
   name: string;
   phone: string;
   smsConsent: boolean;
+  pushOptIn: boolean;
   active: boolean;
   address: string;
   createdAt: string;
@@ -77,6 +80,7 @@ export function toPublicUser(u: User): PublicUser {
     name: u.name,
     phone: u.phone,
     smsConsent: u.smsConsent,
+    pushOptIn: u.pushOptIn,
     active: u.active,
     address: u.address,
     createdAt: u.createdAt,

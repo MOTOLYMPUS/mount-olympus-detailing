@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
       name: input.name,
       phone: input.phone,
       smsConsent: input.smsConsent,
+      pushOptIn: input.pushOptIn,
       role: 'customer',
     });
   } catch (e) {

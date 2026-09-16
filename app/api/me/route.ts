@@ -62,15 +62,26 @@ export const GET = withAuth('any', async ({ user }) => {
 });
 
 export const PATCH = withAuth('any', async ({ user, body }) => {
+  const b = (body ?? {}) as Record<string, unknown>;
+
+  // Lightweight switch used by the push toggle and the in-app nudge: flips
+  // the preference without needing the whole profile form.
+  if (b.action === 'setPushOptIn') {
+    if (typeof b.pushOptIn !== 'boolean') return fail('Please check the form.', 400);
+    const updated = updateUser(user.id, { pushOptIn: b.pushOptIn });
+    return ok({ user: updated ? toPublicUser(updated) : null });
+  }
+
   const result = validateProfile(body);
   if (!result.ok || !result.value) return fail('Please check the form.', 400, result.errors);
 
-  // Only these four fields. Nothing else from the body is even looked at.
+  // Only these fields. Nothing else from the body is even looked at.
   const updated = updateUser(user.id, {
     name: result.value.name,
     phone: result.value.phone,
     address: result.value.address,
     smsConsent: result.value.smsConsent,
+    pushOptIn: result.value.pushOptIn,
   });
 
   audit({

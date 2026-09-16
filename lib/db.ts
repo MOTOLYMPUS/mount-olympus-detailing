@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS users (
   name           TEXT NOT NULL,
   phone          TEXT NOT NULL DEFAULT '',
   sms_consent    INTEGER NOT NULL DEFAULT 0,
+  push_opt_in    INTEGER NOT NULL DEFAULT 1, -- wants push notifications; see migrate()
   email_verified INTEGER NOT NULL DEFAULT 0,
   active         INTEGER NOT NULL DEFAULT 1,
   address        TEXT NOT NULL DEFAULT '',
@@ -529,10 +530,28 @@ function connect(): DatabaseSync {
   db.exec(`PRAGMA foreign_keys = ON;`);
 
   db.exec(SCHEMA);
+  migrate(db);
   seedDefaults(db);
 
   instance = db;
   return db;
+}
+
+/**
+ * Columns added after a table first shipped. CREATE TABLE IF NOT EXISTS does
+ * nothing for a table that already exists, so a new column has to be added
+ * here as well as in SCHEMA (SCHEMA is the truth for fresh databases, this
+ * list is how existing ones catch up). Each entry is idempotent.
+ */
+function migrate(db: DatabaseSync) {
+  const has = (table: string, column: string) =>
+    (db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).some((c) => c.name === column);
+
+  // Push notifications default ON for every account; the customer can turn
+  // them off in Profile. Existing rows get the same default.
+  if (!has('users', 'push_opt_in')) {
+    db.exec(`ALTER TABLE users ADD COLUMN push_opt_in INTEGER NOT NULL DEFAULT 1`);
+  }
 }
 
 /**

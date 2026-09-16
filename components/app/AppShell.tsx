@@ -33,6 +33,7 @@ import { PublicUser } from '@/lib/models';
 import Backdrop from '@/components/visual/Backdrop';
 import AppHeader from './AppHeader';
 import { Sidebar, TabBar, navFor } from './AppNav';
+import PushNudge from '@/components/pwa/PushNudge';
 
 export default function AppShell({
   user,
@@ -65,6 +66,9 @@ export default function AppShell({
         {/* pb-24 clears the mobile tab bar; lg:pb-12 drops it once the tabs are
             replaced by the sidebar. */}
         <main id="app-main" className="min-w-0 flex-1 px-4 pb-24 pt-6 sm:px-6 lg:pb-12">
+          {/* Asks for the one tap push needs, only when the account wants
+              push (the default) and this device is not enrolled yet. */}
+          <PushNudge optIn={user.pushOptIn} />
           {children}
         </main>
       </div>

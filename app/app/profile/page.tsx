@@ -32,7 +32,7 @@ export default async function ProfilePage() {
           Push notifications tell you about booking confirmations, reminders, and when your vehicle
           is ready — without needing the app open.
         </p>
-        <PushToggle />
+        <PushToggle optIn={user.pushOptIn} />
       </Card>
 
       <Card>

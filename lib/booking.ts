@@ -23,7 +23,8 @@ import {
 } from './repo/appointments';
 import { ensureJob, getJobByAppointment } from './repo/jobs';
 import { getVehicle } from './repo/vehicles';
-import { getUser } from './repo/users';
+import { getUser, listUsers } from './repo/users';
+import { notifyUser } from './push';
 import { getPriceOverrides } from './repo/pricing';
 import { activeMembership, award, ensureLoyaltyAccount } from './repo/loyalty';
 import {
@@ -42,6 +43,22 @@ import {
   sendJobComplete,
 } from './notify-account';
 import { AUDIT, audit } from './repo/audit';
+import { formatDateTime } from './timezone';
+
+/** "Mon, Sep 21, 9:00 AM" in the business's zone, for notification text. */
+function whenLabel(startsAt: string): string {
+  return formatDateTime(startsAt, getSchedulingConfig().timezone);
+}
+
+/**
+ * In-app bell + push for the owner/managers. Best-effort: a notification
+ * failure must never fail the booking it describes.
+ */
+function notifyManagers(input: { kind: string; title: string; body: string; url: string }): void {
+  for (const m of listUsers({ roles: ['owner', 'admin', 'manager'], activeOnly: true, limit: 50 })) {
+    notifyUser(m.id, input).catch((e) => console.error('[booking] manager notify failed', e));
+  }
+}
 
 export interface BookingRequest {
   customerId: string;
@@ -245,6 +262,22 @@ export async function createBooking(
     console.error('[booking] confirmation failed', e)
   );
 
+  // In-app bell + push (best-effort, like the email): the customer, and the
+  // owner/managers so a new booking lands on their phone too.
+  const when = whenLabel(appointment.startsAt);
+  notifyUser(customer.id, {
+    kind: 'booking.confirmed',
+    title: 'Booking confirmed',
+    body: `${when} · ${appointment.reference}`,
+    url: `/app/appointments/${appointment.id}`,
+  }).catch((e) => console.error('[booking] customer notify failed', e));
+  notifyManagers({
+    kind: 'booking.new',
+    title: `New booking — ${customer.name}`,
+    body: `${when} · ${appointment.reference}`,
+    url: `/admin/appointments/${appointment.id}`,
+  });
+
   return { appointment, pricing };
 }
 
@@ -311,6 +344,12 @@ export async function rescheduleBooking(
     sendBookingRescheduled(customer, updated, previousStart).catch((e) =>
       console.error('[booking] reschedule email failed', e)
     );
+    notifyUser(customer.id, {
+      kind: 'booking.moved',
+      title: 'Booking moved',
+      body: `Now ${whenLabel(updated.startsAt)} · ${appointment.reference}`,
+      url: `/app/appointments/${appointment.id}`,
+    }).catch((e) => console.error('[booking] customer notify failed', e));
   }
 
   return updated;
@@ -355,6 +394,12 @@ export async function cancelBooking(
     sendBookingCancelled(customer, cancelled, reason).catch((e) =>
       console.error('[booking] cancel email failed', e)
     );
+    notifyUser(customer.id, {
+      kind: 'booking.cancelled',
+      title: 'Booking cancelled',
+      body: `${whenLabel(appointment.startsAt)} · ${appointment.reference}`,
+      url: `/app/appointments/${appointment.id}`,
+    }).catch((e) => console.error('[booking] customer notify failed', e));
   }
 
   return cancelled;
@@ -404,6 +449,12 @@ export async function completeBooking(appointmentId: string, actor: User): Promi
     sendJobComplete(customer, updated).catch((e) =>
       console.error('[booking] completion email failed', e)
     );
+    notifyUser(customer.id, {
+      kind: 'job.complete',
+      title: 'Your vehicle is ready',
+      body: `${appointment.reference} is finished — photos are in your account.`,
+      url: `/app/appointments/${appointment.id}`,
+    }).catch((e) => console.error('[booking] customer notify failed', e));
   }
 
   return updated;

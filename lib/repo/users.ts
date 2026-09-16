@@ -18,6 +18,8 @@ function toUser(row: Row): User {
     name: row.name,
     phone: row.phone,
     smsConsent: bool(row.sms_consent),
+    // Older rows predate the column; treat missing as the default (on).
+    pushOptIn: row.push_opt_in === undefined || row.push_opt_in === null ? true : bool(row.push_opt_in),
     emailVerified: bool(row.email_verified),
     active: bool(row.active),
     address: row.address ?? '',
@@ -38,6 +40,8 @@ export interface CreateUserInput {
   phone?: string;
   role?: Role;
   smsConsent?: boolean;
+  /** Push notifications. Defaults ON — the customer can turn it off in Profile. */
+  pushOptIn?: boolean;
   address?: string;
   hourlyRate?: number | null;
 }
@@ -48,9 +52,9 @@ export function createUser(input: CreateUserInput): User {
 
   getDb()
     .prepare(
-      `INSERT INTO users (id, email, password_hash, role, name, phone, sms_consent,
+      `INSERT INTO users (id, email, password_hash, role, name, phone, sms_consent, push_opt_in,
                           address, hourly_rate, hired_at, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -60,6 +64,7 @@ export function createUser(input: CreateUserInput): User {
       input.name,
       input.phone ?? '',
       flag(input.smsConsent),
+      flag(input.pushOptIn ?? true),
       input.address ?? '',
       input.hourlyRate ?? null,
       input.role && input.role !== 'customer' ? now : null,
@@ -116,6 +121,7 @@ export interface UpdateUserInput {
   name?: string;
   phone?: string;
   smsConsent?: boolean;
+  pushOptIn?: boolean;
   address?: string;
   notes?: string;
   role?: Role;
@@ -133,6 +139,7 @@ export function updateUser(id: string, patch: UpdateUserInput): User | null {
     name: 'name',
     phone: 'phone',
     smsConsent: 'sms_consent',
+    pushOptIn: 'push_opt_in',
     address: 'address',
     notes: 'notes',
     role: 'role',
@@ -148,7 +155,7 @@ export function updateUser(id: string, patch: UpdateUserInput): User | null {
     const value = patch[key];
     if (value === undefined) continue;
     sets.push(`${columns[key]} = ?`);
-    if (key === 'smsConsent' || key === 'active') values.push(flag(value as boolean));
+    if (key === 'smsConsent' || key === 'pushOptIn' || key === 'active') values.push(flag(value as boolean));
     else if (key === 'email') values.push(String(value).trim().toLowerCase());
     else values.push(value as string | number | null);
   }
