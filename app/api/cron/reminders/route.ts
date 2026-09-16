@@ -24,7 +24,7 @@ import crypto from 'node:crypto';
 import { dueForReminder, updateAppointment } from '@/lib/repo/appointments';
 import { getUser } from '@/lib/repo/users';
 import { sendAppointmentReminder } from '@/lib/notify-account';
-import { createNotification } from '@/lib/repo/notifications';
+import { notifyUser } from '@/lib/push';
 import { getSchedulingConfig } from '@/lib/repo/settings';
 import { formatDateTime } from '@/lib/timezone';
 
@@ -75,8 +75,8 @@ export async function POST(req: NextRequest) {
     // in-app notification below is the durable record either way.
     updateAppointment(appointment.id, { remindedAt: new Date().toISOString() });
 
-    createNotification({
-      userId: customer.id,
+    // In-app bell + push (notifyUser never throws; push is best-effort).
+    await notifyUser(customer.id, {
       kind: 'appointment_reminder',
       title: 'Your detail is coming up',
       body: `${formatDateTime(appointment.startsAt, config.timezone)} · ${appointment.reference}`,
