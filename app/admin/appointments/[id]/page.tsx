@@ -25,6 +25,8 @@ import { requireRolePage } from '@/lib/guards';
 import { getAppointmentView } from '@/lib/repo/appointments';
 import { getJobByAppointment, listJobPhotos } from '@/lib/repo/jobs';
 import { listPayments, paidForAppointment } from '@/lib/repo/payments';
+import { openInvoiceFor } from '@/lib/invoicing';
+import { getReviewForAppointment } from '@/lib/repo/reviews';
 import { listUsers } from '@/lib/repo/users';
 import { getSchedulingConfig } from '@/lib/repo/settings';
 import { STAFF_ROLES } from '@/lib/models';
@@ -48,6 +50,10 @@ export default async function AdminAppointmentPage({ params }: { params: Promise
   const photos = job ? listJobPhotos(job.id) : [];
   const payments = listPayments({ appointmentId: appointment.id });
   const paid = paidForAppointment(appointment.id);
+  const invoice = openInvoiceFor(appointment.id);
+  const review = getReviewForAppointment(appointment.id);
+  const invoiceStatus: 'none' | 'sent' | 'paid' =
+    invoice?.status === 'paid' ? 'paid' : invoice ? 'sent' : 'none';
 
   const technicians = listUsers({ roles: STAFF_ROLES, activeOnly: true, limit: 200 });
 
@@ -189,6 +195,33 @@ export default async function AdminAppointmentPage({ params }: { params: Promise
                   </Field>
                 </dl>
 
+                {review && (
+                  <div className="mt-4 rounded-sm border border-white/10 bg-white/[0.02] px-3 py-3">
+                    <p className="font-mono text-[11px] uppercase tracking-widest2 text-subtle">
+                      Customer review
+                    </p>
+                    <p className="mt-1 text-lg text-flare" aria-label={`${review.rating} out of 5`}>
+                      {'★'.repeat(review.rating)}
+                      <span className="text-white/20">{'★'.repeat(5 - review.rating)}</span>
+                    </p>
+                    {review.comment && (
+                      <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-muted">
+                        {review.comment}
+                      </p>
+                    )}
+                    {review.photoUrls.length > 0 && (
+                      <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                        {review.photoUrls.map((url) => (
+                          <li key={url} className="overflow-hidden rounded-sm border border-white/10">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={url} alt="" loading="lazy" className="aspect-square w-full object-cover" />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
                 {job.completionNotes && (
                   <p className="mt-4 whitespace-pre-line rounded-sm border border-white/10 bg-white/[0.02] px-3 py-2 text-[13px] leading-relaxed text-muted">
                     {job.completionNotes}
@@ -229,6 +262,7 @@ export default async function AdminAppointmentPage({ params }: { params: Promise
               technicians={technicians.map((t) => ({ id: t.id, name: t.name }))}
               full
               startsAtLocalValue={startsAtLocalValue}
+              invoiceStatus={invoiceStatus}
             />
           </Card>
 
@@ -269,6 +303,23 @@ export default async function AdminAppointmentPage({ params }: { params: Promise
               <Field label="Deposit">{formatCurrency(appointment.depositCents / 100)}</Field>
               <Field label="Collected">{formatCurrency(paid / 100)}</Field>
               <Field label="Balance">{formatCurrency(balanceDue / 100)}</Field>
+              <Field label="Invoice">
+                {invoice ? (
+                  <Link
+                    href={`/admin/invoices/${invoice.id}`}
+                    className="font-mono underline decoration-white/20 underline-offset-4 hover:text-flare"
+                  >
+                    {invoice.number}
+                  </Link>
+                ) : (
+                  'Not raised'
+                )}
+                {invoice && (
+                  <span className="ml-2">
+                    <StatusBadge status={invoice.status} />
+                  </span>
+                )}
+              </Field>
             </dl>
 
             {payments.length > 0 && (

@@ -22,6 +22,24 @@ export default function ServiceWorkerRegistrar() {
   useEffect(() => {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
+    // ── Development: DO NOT run a caching service worker ─────────────────────
+    // A caching SW serves the previously-cached app shell after every rebuild.
+    // In dev that means edits appear not to show up, UI (e.g. a nav button)
+    // looks like it vanished, and an old shell meeting freshly-hashed chunks
+    // trips a hydration mismatch. So in development we do the opposite of
+    // registering: tear down any worker a prior prod-like run left installed,
+    // and drop its caches. Production is unaffected and still gets the PWA.
+    if (process.env.NODE_ENV !== 'production') {
+      navigator.serviceWorker
+        .getRegistrations()
+        .then((regs) => regs.forEach((r) => r.unregister()))
+        .catch(() => {});
+      if (window.caches) {
+        caches.keys().then((keys) => keys.forEach((k) => caches.delete(k))).catch(() => {});
+      }
+      return;
+    }
+
     function watchForWaitingWorker(reg: ServiceWorkerRegistration) {
       const installing = reg.installing;
       if (!installing) return;

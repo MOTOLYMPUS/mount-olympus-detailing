@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Litestream — continuous, near-real-time backup of every app's SQLite file.
+#
+# WHY THIS MATTERS MORE THAN A NIGHTLY COPY: SQLite is a single file, and a plain
+# `cp` of a file being written to can capture a torn, corrupt copy. Litestream
+# streams the write-ahead log to object storage as changes happen, so you get
+# point-in-time restore and never a half-written snapshot. It costs almost
+# nothing — a few pennies of storage per app per month.
+#
+# Copy to `litestream.yml`, fill in the bucket + credentials, and run Litestream
+# as its own small container or systemd service on the VPS. One config lists
+# EVERY app's database, so all ten are protected by one process.
+#
+# RESTORE (the whole point) for one app:
+#   litestream restore -o /data/data.sqlite s3://your-bucket/mountolympus
+#
+# Target: Backblaze B2 (~$6/TB/mo) or any S3-compatible store. Hetzner does not
+# offer S3 natively, so B2 or Cloudflare R2 pair well with a Hetzner VPS.
+# ─────────────────────────────────────────────────────────────────────────────
+
+access-key-id: YOUR_B2_KEY_ID
+secret-access-key: YOUR_B2_APP_KEY
+
+dbs:
+  # ── App 1 ──
+  - path: /data/mountolympus/data.sqlite
+    replicas:
+      - type: s3
+        bucket: your-backup-bucket
+        path: mountolympus
+        endpoint: s3.us-west-004.backblazeb2.com # your B2 region endpoint
+        region: us-west-004
+        # Keep 30 days of point-in-time history.
+        retention: 720h
+        snapshot-interval: 24h
+
+  # ── App 2 … App 10 ──
+  # - path: /data/client-two/data.sqlite
+  #   replicas:
+  #     - type: s3
+  #       bucket: your-backup-bucket
+  #       path: client-two
+  #       endpoint: s3.us-west-004.backblazeb2.com
+  #       region: us-west-004
+  #       retention: 720h
+  #       snapshot-interval: 24h
+
+# NOTE: uploaded PHOTOS are not SQLite and are not covered here. Back the
+# uploads directories up separately — a nightly `restic` or `rclone sync` of
+# each app's /data/<app>/uploads to the same B2 bucket is the usual pairing.
+# See SERVER-SETUP.md § Backups.

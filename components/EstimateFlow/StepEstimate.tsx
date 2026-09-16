@@ -9,11 +9,23 @@ import { FormState } from './EstimateModal';
 interface Props {
   estimate: EstimateResult | null;
   form: FormState;
+  submitting: boolean;
   onBack: () => void;
-  onNext: () => void;
+  onSubmit: () => void;
 }
 
-export default function StepEstimate({ estimate, form, onBack, onNext }: Props) {
+/** "Friday, June 6 · 9:00 AM" from an ISO instant. */
+function describeSlot(startsAt: string): string {
+  return new Date(startsAt).toLocaleString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+export default function StepEstimate({ estimate, form, submitting, onBack, onSubmit }: Props) {
   const { config } = useIndustry();
 
   // Defensive: the previous build rendered an empty modal with no way out when
@@ -95,6 +107,15 @@ export default function StepEstimate({ estimate, form, onBack, onNext }: Props) 
         </p>
       </div>
 
+      {form.startsAt && (
+        <div className="mt-4 flex items-baseline justify-between gap-4 rounded-sm border border-white/15 bg-white/[0.03] px-4 py-3">
+          <span className="font-mono text-[11px] uppercase tracking-widest2 text-subtle">
+            Requested time
+          </span>
+          <span className="text-sm text-white">{describeSlot(form.startsAt)}</span>
+        </div>
+      )}
+
       {estimate.isPlaceholderPricing ? (
         <p className="mt-4 rounded-sm border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-[13px] leading-relaxed text-amber-200">
           <strong className="font-semibold">Indicative pricing.</strong> {config.label} rates are
@@ -109,13 +130,17 @@ export default function StepEstimate({ estimate, form, onBack, onNext }: Props) 
       )}
 
       <div className="mt-8 flex gap-3">
-        <button onClick={onBack} className="btn-ghost">
+        <button onClick={onBack} className="btn-ghost" disabled={submitting}>
           Back
         </button>
-        <button onClick={onNext} className="btn-apex flex-1">
-          Request This Estimate
+        <button onClick={onSubmit} disabled={submitting} className="btn-apex flex-1">
+          {submitting ? 'Sending…' : 'Submit Request'}
         </button>
       </div>
+
+      <p className="mt-4 text-center text-[11px] leading-relaxed text-subtle">
+        No payment is taken now. We&rsquo;ll confirm pricing and timing before any work begins.
+      </p>
     </div>
   );
 }

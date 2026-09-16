@@ -379,6 +379,22 @@ CREATE TABLE IF NOT EXISTS invoices (
 );
 CREATE INDEX IF NOT EXISTS idx_invoices_user ON invoices (user_id, created_at DESC);
 
+-- Customer reviews: one per appointment, written by the customer after the
+-- job is completed AND paid. Photos are the customer's own uploads
+-- (/api/files/reviews/*). The rating is mirrored onto jobs.customer_rating so
+-- the existing satisfaction reports keep working.
+CREATE TABLE IF NOT EXISTS reviews (
+  id             TEXT PRIMARY KEY,
+  appointment_id TEXT NOT NULL UNIQUE REFERENCES appointments(id) ON DELETE CASCADE,
+  user_id        TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  rating         INTEGER NOT NULL,        -- 1..5
+  comment        TEXT NOT NULL DEFAULT '',
+  photo_urls     TEXT NOT NULL DEFAULT '[]',
+  created_at     TEXT NOT NULL,
+  updated_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_reviews_user ON reviews (user_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS gift_cards (
   id            TEXT PRIMARY KEY,
   code          TEXT NOT NULL UNIQUE,

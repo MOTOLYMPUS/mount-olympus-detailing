@@ -12,7 +12,12 @@ import { getAddOn, getService } from '@/data/pricing';
 import { sizeLabel } from '@/lib/industries';
 import { business } from '@/lib/business';
 import ManageBooking from '@/components/booking/ManageBooking';
-import RateJob from '@/components/booking/RateJob';
+import ReviewJob from '@/components/booking/ReviewJob';
+import InvoicePay from '@/components/app/InvoicePay';
+import { appointmentSettled, openInvoiceFor } from '@/lib/invoicing';
+import { getReviewForAppointment } from '@/lib/repo/reviews';
+import { listPayments } from '@/lib/repo/payments';
+import { stripeConfigured } from '@/lib/stripe';
 import { Alert, Card, CardTitle, Field, PageHeader, StatusBadge } from '@/components/ui';
 import Reveal from '@/components/visual/Reveal';
 
@@ -23,7 +28,7 @@ export default async function AppointmentPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ new?: string }>;
+  searchParams: Promise<{ new?: string; paid?: string; cancelled?: string }>;
 }) {
   const user = await requirePage(`/app/appointments/${(await params).id}`);
   const appointment = getAppointmentView((await params).id);
@@ -33,6 +38,16 @@ export default async function AppointmentPage({
   const config = getSchedulingConfig();
   const job = getJobByAppointment(appointment.id);
   const photos = job ? listJobPhotos(job.id) : [];
+
+  // Invoice → pay → review. The review only opens once the booking is settled.
+  const invoice = openInvoiceFor(appointment.id);
+  const settled = appointmentSettled(appointment);
+  const review = getReviewForAppointment(appointment.id);
+  const canPayByCard = stripeConfigured();
+  const tipsPaid = listPayments({ appointmentId: appointment.id })
+    .filter((p) => p.kind === 'tip' && p.status === 'succeeded')
+    .reduce((s, p) => s + p.amountCents, 0);
+  const sp = await searchParams;
 
   const before = photos.filter((p) => p.kind === 'before');
   const after = photos.filter((p) => p.kind === 'after');
@@ -50,9 +65,19 @@ export default async function AppointmentPage({
         action={<StatusBadge status={appointment.status} />}
       />
 
-      {(await searchParams).new === '1' && (
+      {sp.new === '1' && (
         <Alert tone="positive" title="You are booked in">
           A confirmation is on its way to your email. We will send a reminder before the day.
+        </Alert>
+      )}
+      {sp.paid === '1' && (
+        <Alert tone="positive" title="Thank you — payment received">
+          Your receipt is on its way. Once the payment clears, you can leave a review below.
+        </Alert>
+      )}
+      {sp.cancelled === '1' && (
+        <Alert tone="info" title="Payment not completed">
+          No charge was made. You can pay whenever you are ready.
         </Alert>
       )}
 
@@ -195,14 +220,71 @@ export default async function AppointmentPage({
             </ul>
           )}
 
-          <div className="mt-6 border-t border-white/10 pt-5">
-            <RateJob
-              appointmentId={appointment.id}
-              jobId={job.id}
-              currentRating={job.customerRating}
-              currentFeedback={job.customerFeedback}
-            />
-          </div>
+        </Card>
+      )}
+
+      {/* ── Invoice → pay → review ─────────────────────────────────────────
+          Appears once the booking is completed. The review opens only after
+          payment (a paid invoice, or cash/Zelle recorded by the shop). */}
+      {appointment.status === 'completed' && (
+        <Card>
+          <CardTitle action={invoice ? <StatusBadge status={invoice.status} /> : undefined}>
+            {settled ? 'Paid — thank you' : 'Invoice'}
+          </CardTitle>
+
+          {invoice && (
+            <div className="mb-4">
+              <p className="font-mono text-[12px] text-subtle">Invoice {invoice.number}</p>
+              <ul className="mt-2 divide-y divide-white/5 text-sm">
+                {invoice.lines.map((l, i) => (
+                  <li key={i} className="flex justify-between gap-3 py-1.5">
+                    <span className="text-muted">
+                      {l.label}
+                      {l.qty > 1 ? ` × ${l.qty}` : ''}
+                    </span>
+                    <span className="font-mono text-white">${((l.qty * l.unitCents) / 100).toFixed(2)}</span>
+                  </li>
+                ))}
+                {invoice.discountCents > 0 && (
+                  <li className="flex justify-between gap-3 py-1.5">
+                    <span className="text-muted">Discount</span>
+                    <span className="font-mono text-emerald-400">−${(invoice.discountCents / 100).toFixed(2)}</span>
+                  </li>
+                )}
+                <li className="flex justify-between gap-3 py-2">
+                  <span className="text-white">Total</span>
+                  <span className="font-display text-lg font-bold text-white">
+                    ${(invoice.totalCents / 100).toFixed(2)}
+                  </span>
+                </li>
+                {tipsPaid > 0 && (
+                  <li className="flex justify-between gap-3 py-1.5">
+                    <span className="text-muted">Tip — thank you</span>
+                    <span className="font-mono text-white">${(tipsPaid / 100).toFixed(2)}</span>
+                  </li>
+                )}
+              </ul>
+            </div>
+          )}
+
+          {!settled && invoice && canPayByCard && (
+            <InvoicePay invoiceId={invoice.id} totalCents={invoice.totalCents} number={invoice.number} />
+          )}
+          {!settled && invoice && !canPayByCard && (
+            <p className="text-sm text-muted">
+              Card payments are not set up online yet. Settle up with your technician — cash, Zelle, or card
+              in person — or call {business.phone}.
+            </p>
+          )}
+          {!settled && !invoice && (
+            <p className="text-sm text-muted">Your invoice is on its way. We will let you know when it is ready.</p>
+          )}
+
+          {settled && (
+            <div className={invoice ? 'border-t border-white/10 pt-5' : ''}>
+              <ReviewJob appointmentId={appointment.id} review={review} />
+            </div>
+          )}
         </Card>
       )}
 

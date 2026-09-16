@@ -97,7 +97,7 @@ export class UploadError extends Error {
  * validated against a strict allow-list rather than being interpolated, so it
  * cannot be used to escape the upload root.
  */
-const SCOPES = ['jobs', 'vehicles', 'messages', 'signatures', 'avatars'] as const;
+const SCOPES = ['jobs', 'vehicles', 'messages', 'signatures', 'avatars', 'reviews'] as const;
 export type UploadScope = (typeof SCOPES)[number];
 
 export async function store(file: File, scope: UploadScope): Promise<StoredFile> {

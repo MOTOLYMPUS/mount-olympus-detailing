@@ -163,6 +163,20 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
+/**
+ * Cents-accurate money, always to two decimals — for invoices, expenses, and
+ * anything financial where $142.50 must not round to $143. `formatCurrency`
+ * above deliberately drops cents for menu prices; this never does.
+ */
+export function formatMoney(cents: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100);
+}
+
 /** "$70" for a fixed price, "$50 – $75" when the quote is a range. */
 export function formatPrice(price: number, priceMax?: number): string {
   if (priceMax !== undefined && priceMax !== price) {

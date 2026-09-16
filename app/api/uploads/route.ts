@@ -12,7 +12,7 @@ import { UploadError, UploadScope, store } from '@/lib/uploads';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ALLOWED: UploadScope[] = ['jobs', 'vehicles', 'messages', 'avatars'];
+const ALLOWED: UploadScope[] = ['jobs', 'vehicles', 'messages', 'avatars', 'reviews'];
 
 export const POST = withAuth(
   'any',

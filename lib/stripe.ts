@@ -148,6 +148,15 @@ export interface CreateCheckoutInput {
   /** Shown on the hosted page and on the customer's statement descriptor line. */
   label?: string;
   customerEmail?: string;
+  /** When set, the webhook marks this invoice paid on completion. */
+  invoiceId?: string | null;
+  /**
+   * Optional tip, charged in the SAME session as a second line item so the
+   * customer pays once. Recorded as its own 'tip' payment row (tipPaymentId),
+   * which the webhook settles alongside the main one.
+   */
+  tipCents?: number;
+  tipPaymentId?: string | null;
 }
 
 const KIND_LABEL: Record<PaymentKind, string> = {
@@ -170,6 +179,8 @@ export async function createCheckoutSession(
     return { ok: false, reason: 'error', message: 'Amount must be greater than zero.' };
   }
 
+  const tipCents = Math.max(0, Math.round(input.tipCents ?? 0));
+
   return call<CheckoutSession>(
     '/checkout/sessions',
     'POST',
@@ -188,11 +199,28 @@ export async function createCheckoutSession(
             product_data: { name: input.label || KIND_LABEL[input.kind] },
           },
         },
+        // The tip rides as a second line so the customer sees it itemised on
+        // Stripe's page and pays once.
+        ...(tipCents > 0
+          ? [
+              {
+                quantity: 1,
+                price_data: {
+                  currency: 'usd',
+                  unit_amount: tipCents,
+                  product_data: { name: 'Tip for your technician' },
+                },
+              },
+            ]
+          : []),
       ],
       metadata: {
         kind: input.kind,
         userId: input.userId,
         appointmentId: input.appointmentId ?? '',
+        invoiceId: input.invoiceId ?? '',
+        tipCents: tipCents > 0 ? String(tipCents) : '',
+        tipPaymentId: input.tipPaymentId ?? '',
       },
     },
     'createCheckoutSession'

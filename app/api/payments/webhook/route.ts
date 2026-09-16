@@ -24,9 +24,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   createPayment,
+  getInvoice,
   getPaymentByProviderRef,
+  setInvoiceStatus,
   setPaymentStatus,
 } from '@/lib/repo/payments';
+import { notifyUser } from '@/lib/push';
 import { verifyWebhookSignature, webhookSecret } from '@/lib/stripe';
 
 export const runtime = 'nodejs';
@@ -61,7 +64,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     switch (event.type) {
       case 'checkout.session.completed':
-        handleCheckoutCompleted(event.data.object);
+        await handleCheckoutCompleted(event.data.object);
         break;
       case 'charge.refunded':
         handleChargeRefunded(event.data.object);
@@ -82,7 +85,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
 // ── Handlers ─────────────────────────────────────────────────────────────────
 
-function handleCheckoutCompleted(session: Record<string, any>): void {
+async function handleCheckoutCompleted(session: Record<string, any>): Promise<void> {
   const sessionId = String(session.id ?? '');
   // The PaymentIntent is the durable object refunds reference later, so we
   // re-key the row onto it once it exists.
@@ -92,6 +95,8 @@ function handleCheckoutCompleted(session: Record<string, any>): void {
       : (session.payment_intent?.id ?? null);
 
   if (!sessionId) return;
+
+  const metadata = (session.metadata ?? {}) as Record<string, string>;
 
   // Idempotency: check both keys, because a redelivery after we have already
   // re-keyed onto the PaymentIntent would otherwise look like a new payment.
@@ -109,23 +114,50 @@ function handleCheckoutCompleted(session: Record<string, any>): void {
       ...(paymentIntent ? { providerRef: paymentIntent } : {}),
       methodLabel: 'Card',
     });
-    return;
+  } else {
+    // No pending row — the session was created outside the normal POST flow (a
+    // payment link, say). Record it from the metadata rather than dropping money
+    // on the floor.
+    createPayment({
+      appointmentId: metadata.appointmentId || null,
+      userId: metadata.userId || session.client_reference_id || null,
+      kind: (metadata.kind as any) || 'balance',
+      amountCents: Number(session.amount_total) || 0,
+      status: 'succeeded',
+      provider: 'stripe',
+      providerRef: paymentIntent || sessionId,
+      methodLabel: 'Card',
+    });
   }
 
-  // No pending row — the session was created outside the normal POST flow (a
-  // payment link, say). Record it from the metadata rather than dropping money
-  // on the floor.
-  const metadata = (session.metadata ?? {}) as Record<string, string>;
-  createPayment({
-    appointmentId: metadata.appointmentId || null,
-    userId: metadata.userId || session.client_reference_id || null,
-    kind: (metadata.kind as any) || 'balance',
-    amountCents: Number(session.amount_total) || 0,
-    status: 'succeeded',
-    provider: 'stripe',
-    providerRef: paymentIntent || sessionId,
-    methodLabel: 'Card',
-  });
+  // A tip added at checkout has its own pending row (lib/invoicing.ts); settle
+  // it alongside the main payment. Idempotent: an already-succeeded row is
+  // simply re-stamped succeeded.
+  if (metadata.tipPaymentId) {
+    setPaymentStatus(metadata.tipPaymentId, 'succeeded', {
+      providerRef: `${paymentIntent || sessionId}:tip`,
+      methodLabel: 'Card',
+    });
+  }
+
+  // If this charge was raised against an invoice, mark it paid. setInvoiceStatus
+  // is idempotent, so a redelivered event that reaches here is harmless.
+  if (metadata.invoiceId) {
+    const invoice = getInvoice(metadata.invoiceId);
+    const wasPaid = invoice?.status === 'paid';
+    setInvoiceStatus(metadata.invoiceId, 'paid');
+
+    // First time only: thank the customer and invite the review that payment
+    // has just unlocked.
+    if (invoice && !wasPaid) {
+      await notifyUser(invoice.userId, {
+        kind: 'invoice.paid',
+        title: 'Payment received — thank you',
+        body: metadata.tipCents ? 'And thanks for the tip! How did we do?' : 'How did we do? Leave a quick review.',
+        url: invoice.appointmentId ? `/app/appointments/${invoice.appointmentId}` : '/app/payments',
+      });
+    }
+  }
 }
 
 function handleChargeRefunded(charge: Record<string, any>): void {

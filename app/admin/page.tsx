@@ -154,7 +154,10 @@ export default async function AdminDashboardPage({
         title="Business"
         description="Completed work only. Cancelled and no-show bookings are excluded from every revenue figure on this page."
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <LinkButton href="/admin/finances" variant="secondary" size="sm">
+              Finances
+            </LinkButton>
             <LinkButton href="/admin/reports" variant="secondary" size="sm">
               Reports
             </LinkButton>

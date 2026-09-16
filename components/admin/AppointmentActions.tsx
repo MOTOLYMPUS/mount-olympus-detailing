@@ -44,6 +44,7 @@ export default function AppointmentActions({
   /** The detail screen shows reschedule and status controls; a list row does not. */
   full = false,
   startsAtLocalValue,
+  invoiceStatus = 'none',
 }: {
   appointmentId: string;
   employeeId: string | null;
@@ -52,13 +53,48 @@ export default function AppointmentActions({
   full?: boolean;
   /** 'YYYY-MM-DDTHH:mm' in the business timezone, for the datetime-local input. */
   startsAtLocalValue?: string;
+  /** The invoice that stands for this booking, if any — drives the invoice button. */
+  invoiceStatus?: 'none' | 'sent' | 'paid';
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [when, setWhen] = useState(startsAtLocalValue ?? '');
 
   const closed = status === 'cancelled' || status === 'completed';
+  // "Complete & send invoice" (or just "Send invoice" once completed) is
+  // offered until an invoice stands; a paid one has nothing left to do.
+  const canInvoice = status !== 'cancelled' && status !== 'no_show' && invoiceStatus === 'none';
+
+  async function completeAndInvoice() {
+    const msg =
+      status === 'completed'
+        ? 'Send the invoice for this job? The customer is emailed a link to pay.'
+        : 'Complete this job and send the invoice? Points are awarded and the customer is emailed a link to pay.';
+    if (!window.confirm(msg)) return;
+    setBusy(true);
+    setError('');
+    setNotice('');
+    try {
+      const res = await fetch(`/api/appointments/${appointmentId}/invoice`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        setError(data.error ?? 'That did not work.');
+        return;
+      }
+      setNotice(
+        data.cardPayments
+          ? `Invoice ${data.invoice.number} sent — the customer can pay by card from the app.`
+          : `Invoice ${data.invoice.number} sent. Card payments are not set up yet, so record cash or Zelle when it arrives.`
+      );
+      router.refresh();
+    } catch {
+      setError('No connection.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function run(fn: () => Promise<{ ok: boolean; error?: string }>) {
     setBusy(true);
@@ -72,8 +108,29 @@ export default function AppointmentActions({
   return (
     <div className="space-y-3">
       {error && <Alert tone="danger">{error}</Alert>}
+      {notice && <Alert tone="positive">{notice}</Alert>}
 
       <div className="flex flex-wrap items-center gap-2">
+        {canInvoice && (
+          <button
+            type="button"
+            disabled={busy}
+            className={buttonClass('primary', 'sm')}
+            onClick={completeAndInvoice}
+          >
+            {status === 'completed' ? 'Send invoice' : 'Complete & send invoice'}
+          </button>
+        )}
+        {invoiceStatus === 'sent' && (
+          <span className="rounded-sm border border-amber-500/40 bg-amber-500/10 px-2 py-1 font-mono text-[10px] uppercase tracking-widest2 text-amber-200">
+            Invoice sent · awaiting payment
+          </span>
+        )}
+        {invoiceStatus === 'paid' && (
+          <span className="rounded-sm border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 font-mono text-[10px] uppercase tracking-widest2 text-emerald-300">
+            Invoice paid
+          </span>
+        )}
         <label className="sr-only" htmlFor={`tech-${appointmentId}`}>
           Assign technician
         </label>

@@ -427,6 +427,23 @@ export interface Invoice {
   createdAt: string;
 }
 
+// ── Reviews ──────────────────────────────────────────────────────────────────
+// Written by the customer once a job is completed AND paid. One per
+// appointment; re-submitting replaces it.
+
+export interface Review {
+  id: string;
+  appointmentId: string;
+  userId: string;
+  /** 1–5 */
+  rating: number;
+  comment: string;
+  /** The customer's own uploads, /api/files/reviews/*. */
+  photoUrls: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ── Expenses (owner bookkeeping) ─────────────────────────────────────────────
 // Categories mirror the common lines of an IRS Schedule C so the year-end CSV
 // drops straight into a return or a bookkeeper's hands. `id` values are stable

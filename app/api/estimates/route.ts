@@ -19,6 +19,9 @@ import { calculateEstimate } from '@/lib/pricing';
 import { countRecentByIp, insertEstimateRequest, updateNotificationStatus } from '@/lib/db';
 import { getPriceOverrides } from '@/lib/repo/pricing';
 import { sendEstimateNotifications } from '@/lib/notify';
+import { assertBookable, durationForHours } from '@/lib/availability';
+import { createAppointment } from '@/lib/repo/appointments';
+import { createUser } from '@/lib/repo/users';
 import { RATE_LIMIT, clientIp, generateReference, hashIp } from '@/lib/security';
 import { EstimateRequestRecord } from '@/lib/types';
 
@@ -107,6 +110,80 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // ── 4.5 Hold the requested slot ─────────────────────────────────────────────
+  // If the customer picked a specific time, reserve it as a tentative, blocking
+  // appointment (source 'estimate') so the NEXT visitor is not offered the same
+  // slot. This is what makes the public calendar "update based on other
+  // estimates". The owner sees it in /admin/schedule and confirms or releases it.
+  //
+  // Best-effort by design: a failure here — including the slot having just been
+  // taken by someone faster — must never fail the estimate. The lead is already
+  // saved, and the owner arranges timing directly in that case.
+  //
+  // The hold is attached to a per-lead PLACEHOLDER customer with a synthetic,
+  // non-login email. Two reasons: (1) the appointments table needs a customer,
+  // and (2) using the customer's REAL email here would later block them from
+  // registering, since /api/auth/register rejects an existing address. The
+  // placeholder carries the real name + phone, so the schedule reads correctly.
+  let heldSlot: string | null = null;
+  const startsAtRaw = typeof (body as Record<string, unknown>).startsAt === 'string'
+    ? ((body as Record<string, unknown>).startsAt as string)
+    : null;
+
+  if (startsAtRaw && !Number.isNaN(new Date(startsAtRaw).getTime())) {
+    try {
+      const bookable = assertBookable({
+        startsAt: new Date(startsAtRaw).toISOString(),
+        durationMinutes: durationForHours(estimate.estimatedHours),
+        locationType: 'mobile',
+      });
+
+      if (bookable.ok && bookable.window) {
+        const leadCustomer = createUser({
+          // Synthetic address — unique per estimate, never used to log in, and
+          // deliberately NOT the customer's real email (see note above).
+          email: `lead-${record.id}@estimate.local`,
+          // Not a valid scrypt hash, so verifyPassword can never match it.
+          passwordHash: '!estimate-hold-no-login',
+          name: record.name,
+          phone: record.phone,
+          smsConsent: record.smsConsent,
+          role: 'customer',
+        });
+
+        createAppointment({
+          customerId: leadCustomer.id,
+          vehicleId: null,
+          employeeId: null,
+          estimateId: record.id,
+          industry: record.industry,
+          sizeClass: record.sizeClass,
+          serviceIds: record.serviceIds,
+          addOnIds: record.addOnIds,
+          locationType: 'mobile',
+          address: '',
+          serviceAreaId: null,
+          startsAt: bookable.window.startsAt,
+          endsAt: bookable.window.endsAt,
+          travelMinutes: bookable.window.travelMinutes,
+          bufferMinutes: bookable.window.bufferMinutes,
+          quotedTotal: estimate.total,
+          quotedTotalMax: estimate.totalMax,
+          estimatedHours: estimate.estimatedHours,
+          notes:
+            `Tentative hold from website estimate ${record.reference}. ` +
+            `Contact: ${record.name} · ${record.phone} · ${record.email}. ` +
+            `Confirm or release from the schedule.`,
+          source: 'estimate',
+        });
+
+        heldSlot = bookable.window.startsAt;
+      }
+    } catch (e) {
+      console.error('[estimates] slot hold failed', e);
+    }
+  }
+
   // ── 5. Notify ─────────────────────────────────────────────────────────────
   // The request is already saved; a notification failure degrades but does not
   // fail the submission.
@@ -141,6 +218,9 @@ export async function POST(req: NextRequest) {
     // Surfaced so the confirmation screen can tell the truth about what was
     // actually sent, instead of claiming an email that never went out.
     notifications: notified ?? null,
+    // The tentative slot we reserved, if the customer chose one and it was still
+    // free. Null when they were flexible or the slot was taken first.
+    heldSlot,
   });
 }
 

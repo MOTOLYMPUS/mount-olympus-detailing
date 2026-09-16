@@ -11,6 +11,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import PayActions from '@/components/app/PayActions';
 import { Alert, Card, CardTitle, EmptyState, Field, PageHeader, StatusBadge } from '@/components/ui';
 import { business } from '@/lib/business';
@@ -141,6 +142,14 @@ export default async function PaymentsPage() {
                 <div className="flex items-center gap-3">
                   <span className="font-mono text-sm text-white">{money(inv.totalCents)}</span>
                   <StatusBadge status={inv.status} />
+                  {inv.status === 'sent' && inv.appointmentId && (
+                    <Link
+                      href={`/app/appointments/${inv.appointmentId}`}
+                      className="rounded-sm bg-apex px-3 py-1.5 text-[13px] font-medium text-white hover:bg-apex/90"
+                    >
+                      View &amp; pay
+                    </Link>
+                  )}
                 </div>
               </li>
             ))}

@@ -49,7 +49,6 @@ node scripts/check-images.mjs   # verify every stock image URL still resolves
 | Customer app | `/app` | Signed-in customers |
 | Employee portal | `/staff` | Technicians and above |
 | Business admin | `/admin` | Managers and above |
-| Jarvis (AI agents) | `/jarvis` | Managers and above |
 
 Roles are **ranked** — `customer < employee < manager < admin < owner` — so `atLeast('manager')`
 also admits admins and owners. See `lib/rbac.ts`. Nobody can grant a role at or above their own.
@@ -73,32 +72,6 @@ notifications only work once the app has been added to the home screen (iOS 16.4
 The rule that matters most: **a client-supplied price is never trusted.** Both
 `/api/estimates` and `/api/appointments` recompute the total from `data/pricing` before storing
 it. The smoke tests assert this.
-
-## Jarvis — Project Olympus AI
-
-A voice-first AI layer at `/jarvis`. Say **"Hey Jarvis"**, ask a question, and it answers from
-the real business data — or puts one of eight specialist agents to work on marketing, content,
-customer messages, SEO, leads, analytics, operations, or supervising the rest.
-
-It is not a separate app: it reads the same database, the same login, the same roles, and writes
-to the same audit log.
-
-```bash
-# .env.local
-ANTHROPIC_API_KEY=sk-ant-...
-
-npm run verify:jarvis   # 43 offline checks — no API key, no network, no cost
-```
-
-**The rule that matters most: an agent cannot send anything to a customer or the public without
-you approving it first.** Not by instruction — by construction. Agents have exactly two write
-tools, and everything outbound routes through one policy gate in
-`lib/jarvis/connectors/index.ts`. Payments are permanently off limits.
-
-Two honest limits worth knowing before you rely on it: agents have **no web access** (the SEO and
-lead agents label unverifiable claims as assumptions rather than inventing metrics), and browser
-speech recognition **is not offline** — Chrome sends audio to Google to transcribe it. Both are
-covered in `docs/JARVIS.md`, along with the path to a fully local voice stack.
 
 ## How the three industries work
 
@@ -205,7 +178,6 @@ These are deliberate, visible blockers — none of them fail silently:
 | `COMPLETION.md` | Status report for the original marketing site |
 | `AUDIT.md` | The original audit |
 | `GODADDY-SETUP.md` | Domain cutover sequence |
-| `docs/JARVIS.md` | Project Olympus AI — the voice-first agent layer |
 
 Two things in `VISUAL-SYSTEM.md` are not style preferences and should be read
 before changing any visual code: the **readability contract** (every backdrop

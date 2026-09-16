@@ -1,0 +1,52 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Caddy reverse proxy — one front door, automatic HTTPS for every app.
+#
+# Caddy fetches and renews a free Let's Encrypt certificate for every domain
+# listed below, on its own, with zero config beyond the domain name. That single
+# feature is why this is the lean choice: no certbot, no cron, no renewal
+# scripts, no nginx TLS block to hand-edit ten times.
+#
+# HOW ROUTING WORKS: a request arrives for one of these domains; Caddy terminates
+# TLS and forwards the plain HTTP to the matching app container by its service
+# name and internal port (every app listens on 3000 INSIDE its own container —
+# they do not collide because each is in its own network namespace).
+#
+# TO ADD AN APP: copy a block, change the domain and the `reverse_proxy` target
+# to the new service name, add the matching service in docker-compose.multi.yml,
+# and `docker compose up -d`. Caddy issues the certificate on first request.
+#
+# ⚠️ DNS FIRST: each domain's A record must already point at this server's IP,
+# or Let's Encrypt cannot validate it and the certificate request fails.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Global options
+{
+	# The address Let's Encrypt emails about expiring certs / rate limits.
+	email admin@mountolympusdetailing.com
+	# Uncomment while testing to avoid Let's Encrypt's rate limits (5 certs per
+	# domain per week). Issues untrusted staging certs — re-comment for real ones.
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+# ── App 1 — Mount Olympus Detailing ──────────────────────────────────────────
+mountolympusdetailing.com, www.mountolympusdetailing.com {
+	reverse_proxy app-mountolympus:3000
+	encode zstd gzip
+	# Uploaded photos and the app's own assets can be cached hard; HTML cannot
+	# (it is server-rendered per request). Next.js already sends correct
+	# Cache-Control headers, so we simply pass them through.
+}
+
+# ── App 2 ────────────────────────────────────────────────────────────────────
+# client-two.com, www.client-two.com {
+# 	reverse_proxy app-client-two:3000
+# 	encode zstd gzip
+# }
+
+# ── App 3 … App 10 ───────────────────────────────────────────────────────────
+# Duplicate the block above per app, or let scripts/new-tenant.sh do it. Ten
+# domains here = ten apps, each with its own auto-renewing certificate, behind
+# this one proxy.
+
+# ── NEW-TENANT-SITE (do not remove this line) ────────────────────────────────
+# scripts/new-tenant.sh inserts each new app's site block ABOVE this marker.

@@ -1,18 +1,16 @@
 'use client';
 
 import { InputField, TextAreaField } from '../Field';
-import { formatPrice } from '@/lib/pricing';
-import { EstimateResult } from '@/lib/types';
+import { useIndustry } from '../IndustryProvider';
+import SlotPicker from './SlotPicker';
 import { FormState } from './EstimateModal';
 
 interface Props {
   form: FormState;
   set: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
   errors: Record<string, string>;
-  estimate: EstimateResult | null;
-  submitting: boolean;
   onBack: () => void;
-  onSubmit: () => void;
+  onNext: () => void;
 }
 
 /** Format US digits as the user types: (555) 019-2244 */
@@ -23,40 +21,32 @@ function formatPhone(digits: string): string {
   return `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}`;
 }
 
-export default function StepContact({
-  form,
-  set,
-  errors,
-  estimate,
-  submitting,
-  onBack,
-  onSubmit,
-}: Props) {
-  const today = new Date();
-  // Local date, not toISOString() — the latter shifts the day for anyone west
-  // of UTC and would let a customer pick "today" and have it rejected.
-  const minDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(
-    today.getDate()
-  ).padStart(2, '0')}`;
+/** "Friday, June 6 · 9:00 AM" from an ISO instant. */
+function describeSlot(startsAt: string): string {
+  return new Date(startsAt).toLocaleString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
 
-  const canSubmit =
+export default function StepContact({ form, set, errors, onBack, onNext }: Props) {
+  const { industry } = useIndustry();
+
+  const canContinue =
     form.name.trim().length >= 2 &&
     form.email.includes('@') &&
-    form.phone.replace(/\D/g, '').length === 10 &&
-    !submitting;
+    form.phone.replace(/\D/g, '').length === 10;
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (canSubmit) onSubmit();
-      }}
-    >
+    <div>
       <h2 id="estimate-dialog-title" className="font-display text-2xl font-bold">
-        Where should we send it?
+        Your details &amp; a time
       </h2>
       <p className="mt-2 text-sm text-muted">
-        We&rsquo;ll confirm your estimate and arrange a time that works.
+        We&rsquo;ll confirm your estimate and lock in the slot you choose.
       </p>
 
       <div className="mt-7 flex flex-col gap-5">
@@ -97,15 +87,54 @@ export default function StepContact({
           />
         </div>
 
-        <InputField
-          label="Preferred date"
-          type="date"
-          value={form.preferredDate}
-          onChange={(v) => set('preferredDate', v)}
-          min={minDate}
-          error={errors.preferredDate}
-          hint="Optional — we'll confirm the exact slot with you."
-        />
+        {/* ── Live availability ──────────────────────────────────────────────
+            Real open slots, computed server-side from business hours and every
+            existing booking. Optional: a customer who is flexible can skip it
+            and we arrange a time by phone. */}
+        <div>
+          <div className="mb-1 flex items-baseline justify-between gap-3">
+            <label className="font-mono text-[11px] uppercase tracking-widest2 text-subtle">
+              Preferred time
+            </label>
+            <span className="text-[11px] text-subtle">Optional</span>
+          </div>
+
+          {form.startsAt ? (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-sm border border-apex/40 bg-apex/10 px-4 py-3">
+              <span className="text-sm text-white">{describeSlot(form.startsAt)}</span>
+              <button
+                type="button"
+                onClick={() => set('startsAt', '')}
+                className="shrink-0 font-mono text-[11px] uppercase tracking-widest2 text-muted transition-colors hover:text-white"
+              >
+                Change
+              </button>
+            </div>
+          ) : (
+            <p className="mb-3 text-[13px] text-muted">
+              Choose a slot below, or leave it and we&rsquo;ll find a time together.
+            </p>
+          )}
+
+          {form.sizeClass && form.serviceIds.length > 0 && (
+            <SlotPicker
+              industry={industry}
+              size={form.sizeClass}
+              serviceIds={form.serviceIds}
+              addOnIds={form.addOnIds}
+              value={form.startsAt}
+              onChange={(startsAt, dateIso) => {
+                set('startsAt', startsAt);
+                // Keep the plain-date field in step for the stored record and
+                // the owner's estimate queue.
+                set('preferredDate', startsAt ? dateIso : '');
+              }}
+            />
+          )}
+          {errors.startsAt && (
+            <p className="mt-2 text-[13px] text-flare">{errors.startsAt}</p>
+          )}
+        </div>
 
         <TextAreaField
           label="Notes"
@@ -134,29 +163,14 @@ export default function StepContact({
         </label>
       </div>
 
-      {estimate && (
-        <div className="mt-6 flex items-baseline justify-between gap-4 rounded-sm border border-white/15 bg-white/[0.03] px-4 py-3">
-          <span className="font-mono text-[11px] uppercase tracking-widest2 text-subtle">
-            Your estimate
-          </span>
-          <span className="font-mono text-lg text-white">
-            {formatPrice(estimate.total, estimate.totalMax)}
-          </span>
-        </div>
-      )}
-
       <div className="mt-7 flex gap-3">
-        <button type="button" onClick={onBack} className="btn-ghost" disabled={submitting}>
+        <button type="button" onClick={onBack} className="btn-ghost">
           Back
         </button>
-        <button type="submit" disabled={!canSubmit} className="btn-apex flex-1">
-          {submitting ? 'Sending…' : 'Send My Request'}
+        <button type="button" onClick={onNext} disabled={!canContinue} className="btn-apex flex-1">
+          Review Estimate
         </button>
       </div>
-
-      <p className="mt-4 text-center text-[11px] leading-relaxed text-subtle">
-        No payment is taken now. We&rsquo;ll confirm pricing and timing before any work begins.
-      </p>
-    </form>
+    </div>
   );
 }

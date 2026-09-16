@@ -103,7 +103,7 @@ export default function StepServices({ form, set, onBack, onNext }: Props) {
           onClick={onNext}
           className="btn-apex flex-1"
         >
-          See My Estimate
+          Continue
         </button>
       </div>
     </div>

@@ -4,14 +4,34 @@
     {
       "name": "dev",
       "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
-      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev"],
+      "runtimeArgs": [
+        "node_modules/next/dist/bin/next",
+        "dev"
+      ],
       "port": 3000
     },
     {
       "name": "start",
       "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
-      "runtimeArgs": ["node_modules/next/dist/bin/next", "start"],
+      "runtimeArgs": [
+        "node_modules/next/dist/bin/next",
+        "start"
+      ],
       "port": 3000
+    },
+    {
+      "name": "aegis",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "C:/Users/Luisr/OneDrive/Desktop/aegis-privacy",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "3100"
+      ],
+      "port": 3100
     }
   ]
 }

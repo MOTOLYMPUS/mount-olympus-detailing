@@ -295,6 +295,53 @@ export async function sendAppointmentReminder(
 }
 
 /**
+ * The invoice, once the job is complete. Email with a Pay button, plus a text
+ * when the customer has consented. `payUrl` is the appointment page in the
+ * app, which shows the invoice and the tip + pay controls.
+ */
+export async function sendInvoiceNotice(
+  user: User,
+  appointment: Appointment,
+  invoice: { number: string; totalCents: number },
+  payUrl: string
+): Promise<{ email: Status; sms: Status }> {
+  const total = formatCurrency(invoice.totalCents / 100);
+  const services = serviceList(appointment);
+  const [email, sms] = await Promise.all([
+    sendEmail(
+      user.email,
+      `Your invoice ${invoice.number} — ${total}`,
+      shell(
+        'Thank you — here is your invoice.',
+        `<table width="100%" style="border-collapse:collapse;font-size:14px;margin:0 0 8px">
+           <tr><td style="padding:5px 0;color:#777;width:130px">Invoice</td><td>${esc(invoice.number)}</td></tr>
+           <tr><td style="padding:5px 0;color:#777">Booking</td><td>${esc(appointment.reference)}</td></tr>
+           <tr><td style="padding:5px 0;color:#777">Services</td><td>${esc(services.join(', '))}</td></tr>
+           <tr><td style="padding:5px 0;color:#777">Total</td><td><strong>${esc(total)}</strong></td></tr>
+         </table>
+         <p style="color:#666;font-size:13px;margin-top:12px">Pay securely by card in the app — you can add
+           a tip for your technician there too.</p>`,
+        { label: 'View & pay', url: payUrl }
+      ),
+      [
+        `Thank you — here is your invoice ${invoice.number}.`,
+        `Booking: ${appointment.reference}`,
+        `Services: ${services.join(', ')}`,
+        `Total: ${total}`,
+        '',
+        payUrl,
+        business.name,
+      ].join('\n')
+    ),
+    sendSms(
+      user,
+      `${business.name}: your invoice ${invoice.number} for ${total} is ready. Pay here: ${payUrl}. Reply STOP to opt out.`
+    ),
+  ]);
+  return { email, sms };
+}
+
+/**
  * The short-notice reminder, about 2½ hours out. Text only: an email this
  * close to the visit is noise, and the in-app bell + push carry it too
  * (see app/api/cron/reminders). SMS still requires the customer's consent.

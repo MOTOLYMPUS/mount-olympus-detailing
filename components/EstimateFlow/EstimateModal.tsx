@@ -26,7 +26,7 @@ interface Props {
   prefill?: EstimatePrefill;
 }
 
-export const STEPS = ['Vehicle', 'Services', 'Estimate', 'Details', 'Sent'];
+export const STEPS = ['Vehicle', 'Services', 'Schedule', 'Estimate', 'Sent'];
 
 export interface FormState {
   vehicleType: string;
@@ -40,6 +40,8 @@ export interface FormState {
   email: string;
   phone: string;
   preferredDate: string;
+  /** Chosen availability slot, ISO 8601 UTC. '' when the customer is flexible. */
+  startsAt: string;
   notes: string;
   smsConsent: boolean;
 }
@@ -56,6 +58,7 @@ const EMPTY: FormState = {
   email: '',
   phone: '',
   preferredDate: '',
+  startsAt: '',
   notes: '',
   smsConsent: false,
 };
@@ -130,6 +133,7 @@ export default function EstimateModal({ open, onClose, prefill }: Props) {
       model: '',
       serviceIds: [],
       addOnIds: [],
+      startsAt: '',
     }));
     setErrors({});
     setStep(0);
@@ -180,6 +184,7 @@ export default function EstimateModal({ open, onClose, prefill }: Props) {
           serviceIds: form.serviceIds,
           addOnIds: form.addOnIds,
           preferredDate: form.preferredDate || null,
+          startsAt: form.startsAt || null,
           notes: form.notes,
           smsConsent: form.smsConsent,
         }),
@@ -189,6 +194,9 @@ export default function EstimateModal({ open, onClose, prefill }: Props) {
 
       if (!res.ok || !data.ok) {
         setErrors(data.errors ?? { _: 'Something went wrong. Please try again.' });
+        // A 409 means the slot was taken between choosing it and submitting.
+        // Send them back to the schedule step to pick again.
+        if (res.status === 409) setStep(2);
         setSubmitting(false);
         return;
       }
@@ -301,19 +309,18 @@ export default function EstimateModal({ open, onClose, prefill }: Props) {
                     />
                   )}
                   {step === 2 && (
-                    <StepEstimate
-                      estimate={estimate}
+                    <StepContact
                       form={form}
+                      set={set}
+                      errors={errors}
                       onBack={() => setStep(1)}
                       onNext={() => setStep(3)}
                     />
                   )}
                   {step === 3 && (
-                    <StepContact
-                      form={form}
-                      set={set}
-                      errors={errors}
+                    <StepEstimate
                       estimate={estimate}
+                      form={form}
                       submitting={submitting}
                       onBack={() => setStep(2)}
                       onSubmit={submit}

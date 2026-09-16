@@ -39,6 +39,14 @@ export default function StepVehicle({ form, set, errors, onNext }: Props) {
 
   const currentYear = new Date().getFullYear();
 
+  // Newest first: next model year down to 1900 (covers classics and warbirds).
+  // Bounds mirror the server's year validation (1900 … currentYear + 2).
+  const years = useMemo(() => {
+    const out: string[] = [];
+    for (let y = currentYear + 1; y >= 1900; y--) out.push(String(y));
+    return out;
+  }, [currentYear]);
+
   return (
     <div>
       <h2 id="estimate-dialog-title" className="font-display text-2xl font-bold">
@@ -68,7 +76,19 @@ export default function StepVehicle({ form, set, errors, onNext }: Props) {
           options={config.vehicleTypes.map((t) => ({ value: t.id, label: t.label }))}
         />
 
+        {/* Order (top-left → bottom-right): Year, Make, then Model, Body style
+            — i.e. category, year, make, model, body style overall. */}
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <SelectField
+            label={config.yearLabel}
+            required
+            value={form.year}
+            placeholder="Choose a year…"
+            error={errors.year}
+            onChange={(v) => set('year', v)}
+            options={years.map((y) => ({ value: y, label: y }))}
+          />
+
           <SelectField
             label={config.makeLabel}
             required
@@ -85,7 +105,9 @@ export default function StepVehicle({ form, set, errors, onNext }: Props) {
               { value: OTHER, label: 'Other / not listed' },
             ]}
           />
+        </div>
 
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           {/* A known make gets a model dropdown; "Other" falls back to free
               text so nobody is ever blocked by a gap in the catalog. */}
           {form.make && form.make !== OTHER && models.length > 0 ? (
@@ -113,19 +135,6 @@ export default function StepVehicle({ form, set, errors, onNext }: Props) {
               maxLength={80}
             />
           )}
-        </div>
-
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <InputField
-            label={config.yearLabel}
-            required
-            value={form.year}
-            placeholder={String(currentYear)}
-            inputMode="numeric"
-            maxLength={4}
-            error={errors.year}
-            onChange={(v) => set('year', v.replace(/\D/g, ''))}
-          />
 
           <SelectField
             label={config.sizeLabel}

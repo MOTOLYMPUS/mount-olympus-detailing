@@ -17,6 +17,8 @@ export interface SubmitSuccess {
     customerSms: string;
     businessSms: string;
   } | null;
+  /** The tentative slot we reserved, ISO 8601, or null if none was held. */
+  heldSlot?: string | null;
 }
 
 export default function StepConfirmation({
@@ -76,8 +78,29 @@ export default function StepConfirmation({
           value={formatPrice(result.quotedTotal, result.quotedTotalMax)}
         />
         <Row label="Est. time" value={`${result.estimatedHours} hrs`} />
-        {form.preferredDate && <Row label="Preferred" value={form.preferredDate} />}
+        {result.heldSlot ? (
+          <Row
+            label="Held for you"
+            value={new Date(result.heldSlot).toLocaleString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+            })}
+            strong
+          />
+        ) : (
+          form.preferredDate && <Row label="Preferred" value={form.preferredDate} />
+        )}
       </div>
+
+      {result.heldSlot && (
+        <p className="mx-auto mt-4 max-w-sm rounded-sm border border-apex/40 bg-apex/10 px-4 py-3 text-left text-[12px] leading-relaxed text-white">
+          We&rsquo;ve <strong className="font-semibold">tentatively held</strong> that time for you.
+          We&rsquo;ll confirm it when we reply — no payment is taken now.
+        </p>
+      )}
 
       {result.isPlaceholderPricing && (
         <p className="mx-auto mt-4 max-w-sm rounded-sm border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-left text-[12px] leading-relaxed text-amber-200">

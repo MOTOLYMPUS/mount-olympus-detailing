@@ -237,6 +237,14 @@ export function listInvoices(opts: { userId?: string; limit?: number } = {}): In
   return rows.map(toInvoice);
 }
 
+/** Invoices raised against one appointment, newest first. */
+export function listInvoicesForAppointment(appointmentId: string): Invoice[] {
+  const rows = getDb()
+    .prepare(`SELECT * FROM invoices WHERE appointment_id = ? ORDER BY created_at DESC`)
+    .all(appointmentId) as Row[];
+  return rows.map(toInvoice);
+}
+
 export function setInvoiceStatus(id: string, status: Invoice['status']): Invoice | null {
   getDb()
     .prepare(

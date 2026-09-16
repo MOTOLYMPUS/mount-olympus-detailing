@@ -1,0 +1,105 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Ten apps + one reverse proxy on a single VPS — the lean, no-dashboard path.
+#
+# This is the fully-manual alternative to Coolify. It runs entirely from this one
+# file with `docker compose`. Everything the "expensive per-app platforms" charge
+# for — TLS, routing, restarts, isolation — is here, self-hosted, for the price
+# of the box.
+#
+# WHAT EACH APP GETS, in isolation from the others:
+#   • its own container (own memory, own crash domain — one app OOMing or
+#     crashing does not touch the other nine),
+#   • its own named volume at /data holding ITS data.sqlite and ITS uploads
+#     (SQLite is a FILE, so the entire "database server" for ten apps is ten
+#     files on one disk — this is the single biggest cost saving versus running
+#     ten Postgres instances or paying for ten managed databases),
+#   • its own domain and certificate via the shared Caddy proxy.
+#
+# RESOURCE GUARDRAILS: each app is capped so one busy or leaking app cannot
+# starve the rest. 512M is comfortable for this app at small-business traffic;
+# raise per-app if one gets busy. Ten × 512M = 5G, which fits an 8G box with
+# room for Docker, Caddy, and the OS.
+#
+# USAGE:
+#   docker compose -f docker-compose.multi.yml up -d          # start everything
+#   docker compose -f docker-compose.multi.yml up -d --build   # rebuild + restart
+#   docker compose -f docker-compose.multi.yml logs -f app-mountolympus
+#
+# Per-app secrets live in an env file NEXT TO this one (app-mountolympus.env,
+# etc.), which is gitignored — never commit real keys.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Reverse proxy / TLS for all apps ───────────────────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data # issued certificates — persist so they are not re-fetched every restart
+      - caddy_config:/config
+    networks:
+      - web
+    depends_on:
+      - app-mountolympus
+
+  # ── App 1 — Mount Olympus Detailing ────────────────────────────────────────
+  app-mountolympus:
+    build:
+      context: .. # the app repo root (this compose file lives in deploy/)
+      dockerfile: Dockerfile
+      args:
+        # Compiled into the client bundle at build time — must match the domain.
+        NEXT_PUBLIC_SITE_URL: https://mountolympusdetailing.com
+    restart: unless-stopped
+    env_file:
+      - ./app-mountolympus.env # per-app secrets (gitignored) — see the template
+    volumes:
+      - data_mountolympus:/data # this app's SQLite + uploads, isolated
+    networks:
+      - web
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    # No `ports:` — the app is NOT exposed to the internet directly. Only Caddy
+    # reaches it, over the internal `web` network. This is the isolation boundary.
+
+  # ── App 2 — template. Copy, rename service + volume + domain, add a matching
+  #    Caddyfile block, drop an app-<name>.env beside this file. ───────────────
+  # app-client-two:
+  #   build:
+  #     context: ../../client-two-repo      # each app can be a different repo
+  #     dockerfile: Dockerfile
+  #     args:
+  #       NEXT_PUBLIC_SITE_URL: https://client-two.com
+  #   restart: unless-stopped
+  #   env_file:
+  #     - ./app-client-two.env
+  #   volumes:
+  #     - data_client_two:/data
+  #   networks:
+  #     - web
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 512M
+
+  # ── NEW-TENANT-SERVICE (do not remove this line) ─────────────────────────────
+  # scripts/new-tenant.sh inserts each new app's service block ABOVE this marker.
+
+networks:
+  web:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
+  data_mountolympus:
+  # A named volume survives `docker compose down` and every redeploy — this is
+  # what keeps each app's database and photos across updates.
+  # ── NEW-TENANT-VOLUME (do not remove this line) ──────────────────────────────
+  # scripts/new-tenant.sh inserts each new app's volume name ABOVE this marker.
