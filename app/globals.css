@@ -446,6 +446,14 @@ input[type='range'].compare-slider::-moz-range-track {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* A glass surface that spans the full viewport width and sits against the
+   top edge (the app header). The perimeter border above becomes a visible
+   hairline along the top and both sides there — only the bottom edge should
+   read as a line. Declared after .glass so it wins. */
+.glass-bar {
+  border-width: 0 0 1px 0;
+}
+
 /* ── Card lift ─────────────────────────────────────────────────────────────
    translate3d + shadow. The shadow is pre-declared at rest (transparent) so
    the browser does not have to create a new paint layer on first hover, which

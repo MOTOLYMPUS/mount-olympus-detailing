@@ -78,11 +78,15 @@ export default function AppHeader({
     //
     // `.glass` supplies the 1px hairline itself (a full-perimeter border), so
     // there is no `border-b` here — adding one would double the bottom line.
-    // pt-[env(safe-area-inset-top)]: the glass extends up under the phone's
-    // status bar, so content scrolling out the top is blurred from the moment
-    // it passes under the header all the way to the screen edge. Requires
-    // viewport-fit=cover (app/layout.tsx); it is 0 everywhere else.
-    <header className="glass sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
+    // The glass extends up under the phone's status bar (safe-area padding,
+    // real only with viewport-fit=cover in app/layout.tsx) so content
+    // scrolling out the top is blurred from the moment it passes under the
+    // header all the way to the screen edge. It sticks 1px ABOVE the viewport
+    // (-top-px, with that pixel added back to the padding) so no sub-pixel
+    // gap can ever show a sliver of unblurred content along the top edge.
+    // `glass-bar` keeps only the bottom hairline — a top or side border on a
+    // full-width bar reads as a stray line.
+    <header className="glass glass-bar sticky -top-px z-30 pt-[calc(env(safe-area-inset-top)+1px)]">
       <div className="pointer-events-none absolute inset-0 bg-obsidian/60" aria-hidden="true" />
 
       <div className="relative flex items-center gap-4 px-4 py-3 sm:px-6">
