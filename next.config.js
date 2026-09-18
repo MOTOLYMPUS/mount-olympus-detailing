@@ -45,6 +45,12 @@ const securityHeaders = [
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // Old Safari (an iPad mini 2 tops out at iOS 12) cannot parse modern syntax
+  // such as `?.` / `??`. Next only downlevels OUR code by default; a library
+  // shipping that syntax untranspiled crashes the whole bundle there. Route
+  // framer-motion through the compiler too, so it is built to the same
+  // browser targets (package.json "browserslist").
+  transpilePackages: ['framer-motion'],
   // Two `next dev` instances (or a dev server and a `next build`) running
   // against the same project SHARE `.next` and overwrite each other's chunk
   // manifests — the symptom is a stream of 404s for /_next/static/chunks/*.js

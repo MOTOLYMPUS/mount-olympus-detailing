@@ -570,7 +570,14 @@ input[type='range'].compare-slider::-moz-range-track {
    `data-revealed`. Done in CSS rather than with Framer Motion's `whileInView`
    so that server-rendered sections need no JavaScript to become visible —
    see the no-JS fallback immediately below, which is the part that matters. */
-[data-reveal] {
+/* Every hidden state below is scoped to `html[data-js]`, which
+   components/visual/JsReady.tsx sets ONLY after React has hydrated. So the
+   content starts visible and is hidden-then-revealed purely as an
+   enhancement. This is what protects an old browser (an iPad on iOS 12, say)
+   where a script fails to parse: `@media (scripting: none)` does not fire
+   there because scripting is enabled — it just crashed — and the page would
+   otherwise sit at opacity 0 forever, looking like it never loaded. */
+html[data-js] [data-reveal] {
   opacity: 0;
   transform: translate3d(0, 22px, 0);
   transition:
@@ -578,28 +585,18 @@ input[type='range'].compare-slider::-moz-range-track {
     transform 0.75s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: opacity, transform;
 }
-[data-reveal='left'] {
+html[data-js] [data-reveal='left'] {
   transform: translate3d(-26px, 0, 0);
 }
-[data-reveal='right'] {
+html[data-js] [data-reveal='right'] {
   transform: translate3d(26px, 0, 0);
 }
-[data-reveal='scale'] {
+html[data-js] [data-reveal='scale'] {
   transform: scale(0.965);
 }
-[data-revealed='true'] {
+html[data-js] [data-revealed='true'] {
   opacity: 1;
   transform: none;
-}
-
-/* If JavaScript never runs, everything must still be visible. Without this a
-   scripting failure would leave the entire page blank at opacity 0 — the
-   classic way a scroll-animation library takes a site down. */
-@media (scripting: none) {
-  [data-reveal] {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 /* Reduced motion: show content instantly, but do NOT hide it. */
@@ -626,12 +623,12 @@ input[type='range'].compare-slider::-moz-range-track {
    A clip-path wipe over the loaded image rather than a fade from a grey box:
    the image is already decoded, so the wipe never shows a flash of empty
    space and cannot shift layout. */
-.img-reveal {
+html[data-js] .img-reveal {
   clip-path: inset(0 0 100% 0);
   transition: clip-path 0.9s cubic-bezier(0.22, 1, 0.36, 1);
 }
-[data-revealed='true'] .img-reveal,
-.img-reveal[data-revealed='true'] {
+html[data-js] [data-revealed='true'] .img-reveal,
+html[data-js] .img-reveal[data-revealed='true'] {
   clip-path: inset(0 0 0 0);
 }
 

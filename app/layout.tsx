@@ -3,6 +3,7 @@ import { Archivo, Inter, JetBrains_Mono } from 'next/font/google';
 import { business, siteUrl } from '@/lib/business';
 import ServiceWorkerRegistrar from '@/components/pwa/ServiceWorkerRegistrar';
 import OfflineBanner from '@/components/pwa/OfflineBanner';
+import JsReady from '@/components/visual/JsReady';
 import './globals.css';
 
 const display = Archivo({
@@ -124,6 +125,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="bg-obsidian text-white font-body antialiased">
+        <JsReady />
         <OfflineBanner />
         {children}
         <ServiceWorkerRegistrar />
