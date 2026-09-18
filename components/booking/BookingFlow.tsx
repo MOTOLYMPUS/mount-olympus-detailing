@@ -546,7 +546,11 @@ export default function BookingFlow({
                         setPriceInput(e.target.value);
                       }}
                       aria-invalid={priceInvalid || undefined}
-                      className="input-field pl-8 font-mono"
+                      // Inline: `.input-field` sets its own padding after the
+                      // utilities, so a `pl-*` class loses and the "$" would sit
+                      // on top of the first digit.
+                      style={{ paddingLeft: '2rem' }}
+                      className="input-field font-mono"
                     />
                   </div>
                   {priceTouched && (
@@ -750,7 +754,48 @@ export default function BookingFlow({
 
             {!loadingSlots && !slotError && (
               <>
+                {/* COMPACT: the day is a dropdown too — a fortnight of day
+                    tiles only fits a phone by scrolling sideways, which is
+                    the scroll this layout exists to avoid. Closed days stay
+                    listed (greyed) so the owner can see why a date is off. */}
+                {compact && (
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="booking-day"
+                      className="font-mono text-[11px] uppercase tracking-widest2 text-subtle"
+                    >
+                      Day
+                    </label>
+                    <select
+                      id="booking-day"
+                      className="input-field"
+                      value={dateIso}
+                      onChange={(e) => {
+                        setDateIso(e.target.value);
+                        setStartsAt('');
+                      }}
+                    >
+                      <option value="">Choose a day…</option>
+                      {days.map((d) => {
+                        const date = new Date(`${d.dateIso}T12:00:00Z`);
+                        const label = date.toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                          timeZone: 'UTC',
+                        });
+                        return (
+                          <option key={d.dateIso} value={d.dateIso} disabled={d.openCount === 0}>
+                            {label} · {d.openCount > 0 ? `${d.openCount} free` : d.closedReason ?? 'closed'}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
+
                 {/* Days */}
+                {!compact && (
                 <div className="flex gap-2 overflow-x-auto pb-2">
                   {days.map((d) => {
                     const date = new Date(`${d.dateIso}T12:00:00Z`);
@@ -790,6 +835,7 @@ export default function BookingFlow({
                     );
                   })}
                 </div>
+                )}
 
                 {/* COMPACT: one dropdown, grouped by part of day, instead of a
                     wall of chips — a full day of half-hour slots would push the

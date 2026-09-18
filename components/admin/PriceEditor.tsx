@@ -108,7 +108,9 @@ export default function PriceEditor({
               if (e.key === 'Escape') setEditing(false);
             }}
             aria-label="Quoted price in dollars"
-            className="input-field w-[7.5rem] py-2 pl-7 pr-2 text-right font-mono"
+            // Inline padding: `.input-field` wins over `pl-*` utilities.
+            style={{ paddingLeft: '1.75rem', paddingRight: '0.5rem' }}
+            className="input-field w-[7.5rem] py-2 text-right font-mono"
           />
         </span>
         <button type="button" disabled={busy} onClick={save} className={buttonClass('primary', 'sm')}>
