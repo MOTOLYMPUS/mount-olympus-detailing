@@ -23,6 +23,11 @@ import {
 import { employeeStats } from '@/lib/repo/jobs';
 import { listPlans, membershipStats } from '@/lib/repo/loyalty';
 import { getSchedulingConfig } from '@/lib/repo/settings';
+import { listExpenses } from '@/lib/repo/expenses';
+import { getAppointment } from '@/lib/repo/appointments';
+import { EXPENSE_CATEGORIES, expenseCategoryLabel } from '@/lib/models';
+import { isAdmin } from '@/lib/rbac';
+import { siteUrl } from '@/lib/business';
 import { getService } from '@/data/pricing';
 import { addDaysIso, dateAtMinutes, formatDateTime, todayIso } from '@/lib/timezone';
 import { csvDocument } from '@/lib/csv';
@@ -41,6 +46,7 @@ const TYPES = [
   'services',
   'appointments',
   'memberships',
+  'expenses',
 ] as const;
 type ReportType = (typeof TYPES)[number];
 
@@ -50,6 +56,11 @@ export const GET = withAuth('manager', async ({ user, query, ipHash }) => {
   const type = (query.get('type') ?? 'revenue') as ReportType;
   if (!(TYPES as readonly string[]).includes(type)) {
     return fail(`Unknown report. Choose one of: ${TYPES.join(', ')}.`, 400);
+  }
+  // Expenses are the owner's tax data: the tightest scope in the API, same as
+  // every /api/expenses route. Managers can pull every other report.
+  if (type === 'expenses' && !isAdmin(user.role)) {
+    return fail('Only administrators can export expenses.', 403);
   }
 
   const format = (query.get('format') ?? 'csv').toLowerCase();
@@ -194,6 +205,34 @@ export const GET = withAuth('manager', async ({ user, query, ipHash }) => {
         p.discountPct,
         stats.byPlan.find((b) => b.plan === p.name)?.count ?? 0,
         p.active ? 'yes' : 'no',
+      ]);
+      break;
+    }
+
+    case 'expenses': {
+      header = [
+        'Date',
+        'Category',
+        'Schedule C line',
+        'Vendor',
+        'Job',
+        'Amount (USD)',
+        'Deductible',
+        'Comment',
+        'Receipt',
+      ];
+      // Expenses carry a calendar date, not an instant, so the local date
+      // bounds are used directly.
+      rows = listExpenses({ from: period.fromDate, to: period.toDate, limit: 100_000 }).map((e) => [
+        e.spentOn,
+        expenseCategoryLabel(e.category),
+        EXPENSE_CATEGORIES.find((c) => c.id === e.category)?.scheduleC ?? '',
+        e.vendor,
+        e.appointmentId ? (getAppointment(e.appointmentId)?.reference ?? '') : '',
+        money(e.amountCents / 100),
+        e.deductible ? 'yes' : 'no',
+        e.note,
+        e.receiptKey ? `${siteUrl}/api/files/${e.receiptKey}` : '',
       ]);
       break;
     }

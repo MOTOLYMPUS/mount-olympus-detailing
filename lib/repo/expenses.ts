@@ -23,6 +23,7 @@ function toExpense(row: Row): Expense {
     note: row.note ?? '',
     deductible: !!row.deductible,
     receiptKey: row.receipt_key ?? null,
+    appointmentId: row.appointment_id ?? null,
     createdBy: row.created_by ?? '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -37,6 +38,7 @@ export function createExpense(input: {
   note?: string;
   deductible?: boolean;
   receiptKey?: string | null;
+  appointmentId?: string | null;
   createdBy: string;
 }): Expense {
   const id = crypto.randomUUID();
@@ -44,8 +46,8 @@ export function createExpense(input: {
   getDb()
     .prepare(
       `INSERT INTO expenses (id, spent_on, category, amount_cents, vendor, note,
-                             deductible, receipt_key, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                             deductible, receipt_key, appointment_id, created_by, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .run(
       id,
@@ -56,6 +58,7 @@ export function createExpense(input: {
       input.note ?? '',
       input.deductible === false ? 0 : 1,
       input.receiptKey ?? null,
+      input.appointmentId ?? null,
       input.createdBy,
       now,
       now
@@ -78,6 +81,7 @@ export function updateExpense(
     note: string;
     deductible: boolean;
     receiptKey: string | null;
+    appointmentId: string | null;
   }>
 ): Expense | null {
   const current = getExpense(id);
@@ -91,12 +95,13 @@ export function updateExpense(
     note: patch.note ?? current.note,
     deductible: (patch.deductible ?? current.deductible) ? 1 : 0,
     receipt_key: patch.receiptKey === undefined ? current.receiptKey : patch.receiptKey,
+    appointment_id: patch.appointmentId === undefined ? current.appointmentId : patch.appointmentId,
   };
 
   getDb()
     .prepare(
       `UPDATE expenses SET spent_on = ?, category = ?, amount_cents = ?, vendor = ?,
-                          note = ?, deductible = ?, receipt_key = ?, updated_at = ?
+                          note = ?, deductible = ?, receipt_key = ?, appointment_id = ?, updated_at = ?
         WHERE id = ?`
     )
     .run(
@@ -107,6 +112,7 @@ export function updateExpense(
       next.note,
       next.deductible,
       next.receipt_key,
+      next.appointment_id,
       nowIso(),
       id
     );

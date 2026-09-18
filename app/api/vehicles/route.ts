@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server';
 import { fail, ok, withAuth } from '@/lib/api';
 import { createVehicle, listVehicles } from '@/lib/repo/vehicles';
+import { getUser } from '@/lib/repo/users';
 import { validateVehicle } from '@/lib/validation-account';
 import { canManage } from '@/lib/rbac';
 import { unlockReferrerCoupons } from '@/lib/repo/coupons';
@@ -26,14 +27,25 @@ export const POST = withAuth('any', async ({ user, body }) => {
   const result = validateVehicle(body);
   if (!result.ok || !result.value) return fail('Please check the form.', 400, result.errors);
 
-  // Always the caller's own garage. There is deliberately no `userId` field
-  // read from the body — a customer cannot add a vehicle to someone else's
-  // account, and staff adding one on the phone go through the admin route.
-  const vehicle = createVehicle(user.id, result.value);
+  // The caller's own garage — unless a MANAGER names a customer, which is
+  // the phone-booking case (a customer who has never used the app has
+  // nothing to book against until someone adds their vehicle). A customer's
+  // own session ignores the field entirely.
+  const b = (body ?? {}) as Record<string, unknown>;
+  const forUserId = canManage(user.role) && typeof b.userId === 'string' ? b.userId : '';
+  let ownerId = user.id;
+  if (forUserId) {
+    const target = getUser(forUserId);
+    if (!target || target.role !== 'customer') return fail('That customer was not found.', 404);
+    ownerId = target.id;
+  }
+
+  const vehicle = createVehicle(ownerId, result.value);
 
   // Adding a vehicle is proof a referred sign-up was real: it unlocks the
-  // referrer's pending coupon (no-op for everyone else).
-  unlockReferrerCoupons(user.id);
+  // referrer's pending coupon (no-op for everyone else). Keyed on the garage
+  // OWNER, so a vehicle added by staff on the phone counts too.
+  unlockReferrerCoupons(ownerId);
 
   return ok({ vehicle }, { status: 201 });
 });

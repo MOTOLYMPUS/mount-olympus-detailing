@@ -154,35 +154,40 @@ export default async function AdminDashboardPage({
         title="Business"
         description="Completed work only. Cancelled and no-show bookings are excluded from every revenue figure on this page."
         action={
-          <div className="flex flex-wrap gap-2">
+          // Four soft buttons in the order the owner works through them.
+          <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+            <LinkButton href="/admin/schedule" variant="secondary" size="sm">
+              Schedule
+            </LinkButton>
+            <LinkButton href="/admin/expenses" variant="secondary" size="sm">
+              Expenses
+            </LinkButton>
             <LinkButton href="/admin/finances" variant="secondary" size="sm">
               Finances
             </LinkButton>
             <LinkButton href="/admin/reports" variant="secondary" size="sm">
               Reports
             </LinkButton>
-            <LinkButton href="/admin/schedule" size="sm">
-              Schedule
-            </LinkButton>
           </div>
         }
       />
 
-      {/* ── Period selector ── */}
-      <nav aria-label="Reporting period" className="mb-6 flex flex-wrap gap-2">
+      {/* ── Period selector: four equal cells spanning the full width ── */}
+      <nav aria-label="Reporting period" className="mb-6 grid grid-cols-4 gap-2">
         {PERIOD_KEYS.map((key) => (
           <Link
             key={key}
             href={key === '30d' ? '/admin' : `/admin?period=${key}`}
             aria-current={key === periodKey ? 'page' : undefined}
             className={clsx(
-              'rounded-full border px-3.5 py-1.5 font-mono text-[11px] uppercase tracking-widest2 transition-colors',
+              'rounded-full border px-2 py-2 text-center font-mono text-[11px] uppercase tracking-widest2 transition-colors',
               key === periodKey
                 ? 'border-apex bg-apex/10 text-white'
                 : 'border-white/20 text-muted hover:border-white/50 hover:text-white'
             )}
           >
-            {PERIOD_LABEL[key]}
+            {/* Short labels so four cells fit a phone on one line each. */}
+            {key === 'ytd' ? 'YTD' : PERIOD_LABEL[key].replace('Last ', '')}
           </Link>
         ))}
       </nav>

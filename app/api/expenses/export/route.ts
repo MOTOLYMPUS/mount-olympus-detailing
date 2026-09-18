@@ -11,6 +11,8 @@ import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api';
 import { EXPENSE_CATEGORIES, expenseCategoryLabel } from '@/lib/models';
 import { listExpenses } from '@/lib/repo/expenses';
+import { getAppointment } from '@/lib/repo/appointments';
+import { siteUrl } from '@/lib/business';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -35,15 +37,17 @@ export const GET = withAuth('admin', async ({ query }) => {
     limit: 100_000,
   });
 
-  const header = ['Date', 'Category', 'Schedule C line', 'Vendor', 'Note', 'Amount', 'Deductible'];
+  const header = ['Date', 'Category', 'Schedule C line', 'Vendor', 'Job', 'Note', 'Amount', 'Deductible', 'Receipt'];
   const rows = expenses.map((e) => [
     e.spentOn,
     expenseCategoryLabel(e.category),
     scheduleCFor(e.category),
     e.vendor,
+    e.appointmentId ? (getAppointment(e.appointmentId)?.reference ?? '') : '',
     e.note,
     (e.amountCents / 100).toFixed(2),
     e.deductible ? 'Yes' : 'No',
+    e.receiptKey ? `${siteUrl}/api/files/${e.receiptKey}` : '',
   ]);
 
   const csv = [header, ...rows].map((r) => r.map(csvCell).join(',')).join('\r\n');

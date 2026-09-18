@@ -528,6 +528,7 @@ CREATE TABLE IF NOT EXISTS expenses (
   note         TEXT NOT NULL DEFAULT '',
   deductible   INTEGER NOT NULL DEFAULT 1,
   receipt_key  TEXT,
+  appointment_id TEXT,                     -- the job it was spent on; see migrate()
   created_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
   created_at   TEXT NOT NULL,
   updated_at   TEXT NOT NULL
@@ -574,6 +575,11 @@ function migrate(db: DatabaseSync) {
   // two reminders are independently idempotent.
   if (!has('appointments', 'reminded_soon_at')) {
     db.exec(`ALTER TABLE appointments ADD COLUMN reminded_soon_at TEXT`);
+  }
+
+  // Expenses can be tied to the job they were spent on.
+  if (!has('expenses', 'appointment_id')) {
+    db.exec(`ALTER TABLE expenses ADD COLUMN appointment_id TEXT`);
   }
 }
 

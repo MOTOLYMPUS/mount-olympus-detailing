@@ -455,6 +455,7 @@ export type ExpenseCategory =
   | 'equipment'
   | 'vehicle'
   | 'fuel'
+  | 'wages'
   | 'insurance'
   | 'rent'
   | 'utilities'
@@ -474,18 +475,20 @@ export interface ExpenseCategoryDef {
   scheduleC: string;
 }
 
+// Ordered by how often a detailer reaches for them: the everyday ones first.
 export const EXPENSE_CATEGORIES: ExpenseCategoryDef[] = [
-  { id: 'supplies', label: 'Supplies & chemicals', scheduleC: 'Line 22 — Supplies' },
+  { id: 'fuel', label: 'Fuel', scheduleC: 'Line 9 — Car & truck' },
+  { id: 'supplies', label: 'Materials & supplies', scheduleC: 'Line 22 — Supplies' },
+  { id: 'wages', label: 'Labor / wages', scheduleC: 'Line 26 — Wages' },
+  { id: 'contract_labor', label: 'Contract labor', scheduleC: 'Line 11 — Contract labor' },
   { id: 'equipment', label: 'Equipment & tools', scheduleC: 'Line 13 — Depreciation / §179' },
   { id: 'vehicle', label: 'Vehicle (repairs, maint.)', scheduleC: 'Line 9 — Car & truck' },
-  { id: 'fuel', label: 'Fuel', scheduleC: 'Line 9 — Car & truck' },
   { id: 'insurance', label: 'Insurance', scheduleC: 'Line 15 — Insurance' },
   { id: 'rent', label: 'Rent / storage / bay', scheduleC: 'Line 20 — Rent or lease' },
   { id: 'utilities', label: 'Utilities & phone', scheduleC: 'Line 25 — Utilities' },
   { id: 'advertising', label: 'Advertising & marketing', scheduleC: 'Line 8 — Advertising' },
   { id: 'software', label: 'Software & subscriptions', scheduleC: 'Line 27a — Other' },
   { id: 'fees', label: 'Payment processing & bank fees', scheduleC: 'Line 27a — Other' },
-  { id: 'contract_labor', label: 'Contract labor', scheduleC: 'Line 11 — Contract labor' },
   { id: 'meals', label: 'Meals (business)', scheduleC: 'Line 24b — Meals (50%)' },
   { id: 'travel', label: 'Travel', scheduleC: 'Line 24a — Travel' },
   { id: 'taxes_licenses', label: 'Taxes & licenses', scheduleC: 'Line 23 — Taxes & licenses' },
@@ -510,6 +513,8 @@ export interface Expense {
   deductible: boolean;
   /** Optional stored receipt image/PDF, via lib/uploads.ts. */
   receiptKey: string | null;
+  /** The job this spend belongs to, when it was for one. */
+  appointmentId: string | null;
   /** Who recorded it — every expense is attributable in the audit trail. */
   createdBy: string;
   createdAt: string;

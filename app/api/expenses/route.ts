@@ -10,6 +10,7 @@
 import { fail, int, ok, str, withAuth } from '@/lib/api';
 import { EXPENSE_CATEGORY_IDS, ExpenseCategory } from '@/lib/models';
 import { createExpense, listExpenses } from '@/lib/repo/expenses';
+import { getAppointment } from '@/lib/repo/appointments';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -64,6 +65,18 @@ export const POST = withAuth(
       });
     }
 
+    // Optional link to the job the money was spent on. Must be a real booking.
+    const appointmentId = str(b.appointmentId, 60) || null;
+    if (appointmentId && !getAppointment(appointmentId)) {
+      return fail('That booking no longer exists.', 400, { appointmentId: 'Unknown booking.' });
+    }
+
+    // A receipt must be one of OUR uploads in the receipts scope.
+    const receiptKey = str(b.receiptKey, 200) || null;
+    if (receiptKey && !/^receipts\/[0-9a-f-]{36}\.[a-z0-9]{3,4}$/.test(receiptKey)) {
+      return fail('That receipt has not been uploaded yet.', 400, { receiptKey: 'Invalid receipt.' });
+    }
+
     const expense = createExpense({
       spentOn,
       category,
@@ -71,7 +84,8 @@ export const POST = withAuth(
       vendor: str(b.vendor, 120),
       note: str(b.note, 500),
       deductible: b.deductible !== false, // default deductible unless told otherwise
-      receiptKey: str(b.receiptKey, 200) || null,
+      receiptKey,
+      appointmentId,
       createdBy: user.id,
     });
 

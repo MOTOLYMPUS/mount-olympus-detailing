@@ -18,7 +18,12 @@
 
 import Link from 'next/link';
 import { Alert, Card, CardTitle, PageHeader, StatTile } from '@/components/ui';
+import ExpenseLogger from '@/components/admin/ExpenseLogger';
 import { requireRolePage } from '@/lib/guards';
+import { isAdmin } from '@/lib/rbac';
+import { listExpenses } from '@/lib/repo/expenses';
+import { EXPENSE_CATEGORIES } from '@/lib/models';
+import { formatDate } from '@/lib/timezone';
 import {
   listAppointments,
   revenueBetween,
@@ -65,6 +70,11 @@ const REPORTS = [
     label: 'Memberships',
     description: 'Each plan, its price and how many people are on it.',
   },
+  {
+    value: 'expenses',
+    label: 'Expenses',
+    description: 'Every expense logged in the range: category, Schedule C line, vendor, job, receipt link. Administrators only.',
+  },
 ];
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -74,7 +84,7 @@ export default async function AdminReportsPage({
 }: {
   searchParams?: Promise<{ type?: string; from?: string; to?: string }>;
 }) {
-  await requireRolePage('manager', '/admin/reports');
+  const user = await requireRolePage('manager', '/admin/reports');
   const { timezone } = getSchedulingConfig();
   const today = todayIso(timezone);
   const sp = (await searchParams) ?? {};
@@ -102,6 +112,8 @@ export default async function AdminReportsPage({
         return listAppointments({ from, to, direction: 'all', limit: 5000 }).length;
       case 'memberships':
         return listPlans(false).length;
+      case 'expenses':
+        return listExpenses({ from: fromDate, to: toDate, limit: 100_000 }).length;
       case 'revenue':
       default:
         return revenueSeries(from, to).length;
@@ -109,6 +121,23 @@ export default async function AdminReportsPage({
   })();
 
   const selected = REPORTS.find((r) => r.value === type)!;
+
+  // Recent bookings the expense form can tie a spend to: the last 90 days
+  // plus anything upcoming, newest first.
+  const admin = isAdmin(user.role);
+  const jobs = admin
+    ? listAppointments({
+        from: dateAtMinutes(addDaysIso(today, -90), 0, timezone).toISOString(),
+        direction: 'all',
+        limit: 200,
+      })
+        .filter((a) => a.status !== 'cancelled')
+        .sort((a, b) => b.startsAt.localeCompare(a.startsAt))
+        .map((a) => ({
+          id: a.id,
+          label: `${a.reference} · ${a.customerName} · ${formatDate(a.startsAt, timezone)}`,
+        }))
+    : [];
   const downloadHref = `/api/reports?${new URLSearchParams({ type, format: 'csv', from: fromDate, to: toDate })}`;
 
   return (
@@ -118,6 +147,14 @@ export default async function AdminReportsPage({
         title="Reports"
         description="Pick a report and a date range. Files download as CSV."
       />
+
+      {/* Log an expense right here — receipts get filed where the report
+          that includes them is pulled from. Admin-only, like the data. */}
+      {admin && (
+        <div className="mb-6">
+          <ExpenseLogger categories={EXPENSE_CATEGORIES} jobs={jobs} />
+        </div>
+      )}
 
       <section aria-label="Range summary" className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="Range" value={`${rowCount} rows`} sub={selected.label} />

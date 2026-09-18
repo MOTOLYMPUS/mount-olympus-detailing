@@ -51,14 +51,11 @@ export default async function FinancesPage({
         title="Finances"
         description="Revenue collected, expenses recorded, and what is still owed. Administrators only."
         action={
-          <div className="flex gap-2">
-            <LinkButton href="/admin/invoices" size="sm">
-              Invoices
-            </LinkButton>
-            <LinkButton href="/admin/expenses" variant="secondary" size="sm">
-              Expenses
-            </LinkButton>
-          </div>
+          // Expenses has its own button on the Business tab (and a "Log
+          // expense" on Reports), so it is not duplicated here.
+          <LinkButton href="/admin/invoices" size="sm">
+            Invoices
+          </LinkButton>
         }
       />
 

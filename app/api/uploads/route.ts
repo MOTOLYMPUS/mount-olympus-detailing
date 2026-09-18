@@ -8,11 +8,12 @@
 
 import { fail, ok, withAuth } from '@/lib/api';
 import { UploadError, UploadScope, store } from '@/lib/uploads';
+import { canManage } from '@/lib/rbac';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ALLOWED: UploadScope[] = ['jobs', 'vehicles', 'messages', 'avatars', 'reviews'];
+const ALLOWED: UploadScope[] = ['jobs', 'vehicles', 'messages', 'avatars', 'reviews', 'receipts'];
 
 export const POST = withAuth(
   'any',
@@ -30,6 +31,10 @@ export const POST = withAuth(
     // Only staff may attach photos to a job record; customers upload to their
     // own vehicles and to booking notes.
     if (scope === 'jobs' && user.role === 'customer') {
+      return fail('You do not have access to that.', 403);
+    }
+    // Receipts are the owner's tax records: managers and above only.
+    if (scope === 'receipts' && !canManage(user.role)) {
       return fail('You do not have access to that.', 403);
     }
 

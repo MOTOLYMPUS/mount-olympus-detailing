@@ -112,11 +112,29 @@ export default function BookingFlow({
   defaultAddress,
   preselectedVehicleId,
   preselectedServiceId,
+  customerId,
+  successHref,
+  addVehicleHref = '/app/garage/new',
 }: {
   vehicles: Vehicle[];
   defaultAddress: string;
   preselectedVehicleId?: string;
   preselectedServiceId?: string;
+  /**
+   * STAFF MODE: book on behalf of this customer (phone or text bookings).
+   * The API only honours it for managers+; a customer's own session ignores
+   * it. The wizard itself is identical — same slots, same pricing.
+   */
+  customerId?: string;
+  /**
+   * Where to land after a successful booking, with `{id}` standing for the
+   * new appointment id (default: the customer's appointment page). A string
+   * template rather than a function because this is a client component fed
+   * by server pages, and functions cannot cross that boundary.
+   */
+  successHref?: string;
+  /** Where "add a vehicle" links go (staff mode points at the customer's admin page). */
+  addVehicleHref?: string;
 }) {
   const router = useRouter();
   const reduced = usePrefersReducedMotion();
@@ -237,6 +255,8 @@ export default function BookingFlow({
           locationType,
           address,
           notes,
+          // Staff mode only; ignored by the API for a customer's own session.
+          ...(customerId ? { customerId } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -253,7 +273,11 @@ export default function BookingFlow({
         return;
       }
 
-      router.push(`/app/appointments/${data.appointment.id}?new=1`);
+      router.push(
+        successHref
+          ? successHref.replace('{id}', data.appointment.id)
+          : `/app/appointments/${data.appointment.id}?new=1`
+      );
       router.refresh();
     } catch {
       setBanner('We could not reach the server. Your booking was not made.');
@@ -266,7 +290,7 @@ export default function BookingFlow({
     return (
       <Alert tone="info" title="Add a vehicle first">
         We price by vehicle size, so we need to know what we are working on.{' '}
-        <Link href="/app/garage/new" className="underline">
+        <Link href={addVehicleHref} className="underline">
           Add your vehicle
         </Link>{' '}
         and come straight back.
@@ -345,7 +369,7 @@ export default function BookingFlow({
                 />
               ))}
             </div>
-            <Link href="/app/garage/new" className="mt-4 inline-block text-[13px] text-muted hover:text-white">
+            <Link href={addVehicleHref} className="mt-4 inline-block text-[13px] text-muted hover:text-white">
               + Add another vehicle
             </Link>
           </fieldset>

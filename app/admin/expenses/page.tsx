@@ -16,6 +16,9 @@ import Link from 'next/link';
 import clsx from 'clsx';
 import { requireRolePage } from '@/lib/guards';
 import { listExpenses, expenseSummary } from '@/lib/repo/expenses';
+import { getAppointment, listAppointments } from '@/lib/repo/appointments';
+import { getSchedulingConfig } from '@/lib/repo/settings';
+import { addDaysIso, dateAtMinutes, formatDate, todayIso } from '@/lib/timezone';
 import { EXPENSE_CATEGORIES, expenseCategoryLabel } from '@/lib/models';
 import { formatMoney } from '@/lib/pricing';
 import { PageHeader, Card, StatTile, LinkButton, buttonClass } from '@/components/ui';
@@ -46,6 +49,25 @@ export default async function ExpensesPage({
 
   const expenses = listExpenses({ from, to, limit: 1000 });
   const summary = expenseSummary(from, to);
+
+  // Bookings the form can tie a spend to (last 90 days + upcoming), and the
+  // reference for every job already linked in this year's ledger.
+  const { timezone } = getSchedulingConfig();
+  const today = todayIso(timezone);
+  const jobs = listAppointments({
+    from: dateAtMinutes(addDaysIso(today, -90), 0, timezone).toISOString(),
+    direction: 'all',
+    limit: 200,
+  })
+    .filter((a) => a.status !== 'cancelled')
+    .sort((a, b) => b.startsAt.localeCompare(a.startsAt))
+    .map((a) => ({ id: a.id, label: `${a.reference} · ${a.customerName} · ${formatDate(a.startsAt, timezone)}` }));
+  const jobRefs: Record<string, string> = {};
+  for (const e of expenses) {
+    if (e.appointmentId && !jobRefs[e.appointmentId]) {
+      jobRefs[e.appointmentId] = getAppointment(e.appointmentId)?.reference ?? 'Job';
+    }
+  }
 
   // Offer the current year plus the previous four — enough to file and amend.
   const years = Array.from({ length: 5 }, (_, i) => thisYear - i);
@@ -125,7 +147,7 @@ export default async function ExpensesPage({
         <h2 id="ledger-heading" className="eyebrow mb-4">
           {year} ledger
         </h2>
-        <ExpenseManager initial={expenses} categories={EXPENSE_CATEGORIES} />
+        <ExpenseManager initial={expenses} categories={EXPENSE_CATEGORIES} jobs={jobs} jobRefs={jobRefs} />
       </section>
 
       <p className="text-[12px] leading-relaxed text-subtle">

@@ -29,7 +29,17 @@ const PLATE_LABEL: Record<Industry, string> = {
   aviation: 'Tail number',
 };
 
-export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
+export default function VehicleForm({
+  vehicle,
+  forUserId,
+  successHref = '/app/garage',
+}: {
+  vehicle?: Vehicle;
+  /** STAFF MODE: add the vehicle to this customer's garage (managers+ only, enforced by the API). */
+  forUserId?: string;
+  /** Where to go after saving. */
+  successHref?: string;
+}) {
   const router = useRouter();
 
   const [industry, setIndustry] = useState<Industry>(vehicle?.industry ?? 'automotive');
@@ -116,6 +126,8 @@ export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
       plate,
       notes,
       isDefault,
+      // Staff mode only; a customer's own session has the field ignored.
+      ...(forUserId ? { userId: forUserId } : {}),
     };
 
     try {
@@ -134,7 +146,7 @@ export default function VehicleForm({ vehicle }: { vehicle?: Vehicle }) {
         return;
       }
 
-      router.push('/app/garage');
+      router.push(successHref);
       router.refresh();
     } catch {
       setBanner('We could not reach the server. Your connection may be offline.');

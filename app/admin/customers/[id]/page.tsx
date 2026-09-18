@@ -72,9 +72,17 @@ export default async function AdminCustomerPage({ params }: { params: Promise<{ 
         title={customer.name}
         description={`Joined ${formatDate(customer.createdAt, timezone)} · ${relativeTime(customer.createdAt)}`}
         action={
-          <LinkButton href="/admin/customers" variant="ghost" size="sm">
-            ← Customers
-          </LinkButton>
+          <div className="flex flex-wrap gap-2">
+            <LinkButton href={`/admin/customers/${customer.id}/book`} size="sm">
+              Book for customer
+            </LinkButton>
+            <LinkButton href={`/admin/customers/${customer.id}/vehicles/new`} variant="secondary" size="sm">
+              Add vehicle
+            </LinkButton>
+            <LinkButton href="/admin/customers" variant="ghost" size="sm">
+              ← Customers
+            </LinkButton>
+          </div>
         }
       />
 
