@@ -581,6 +581,14 @@ function migrate(db: DatabaseSync) {
   if (!has('expenses', 'appointment_id')) {
     db.exec(`ALTER TABLE expenses ADD COLUMN appointment_id TEXT`);
   }
+
+  // When a vehicle was removed: the owner's view keeps it (restorable) for
+  // 24 hours, then drops it from the customer's garage list. The row itself
+  // stays for booking history.
+  if (!has('vehicles', 'archived_at')) {
+    db.exec(`ALTER TABLE vehicles ADD COLUMN archived_at TEXT`);
+    db.exec(`UPDATE vehicles SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL`);
+  }
 }
 
 /**

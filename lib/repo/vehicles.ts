@@ -30,6 +30,7 @@ function toVehicle(row: Row): Vehicle {
     photoUrl: row.photo_url ?? null,
     isDefault: bool(row.is_default),
     archived: bool(row.archived),
+    archivedAt: row.archived_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -151,14 +152,15 @@ export function updateVehicle(id: string, patch: Partial<VehicleInput>): Vehicle
  * that was done to it.
  */
 export function archiveVehicle(id: string): void {
+  const now = nowIso();
   getDb()
-    .prepare(`UPDATE vehicles SET archived = 1, is_default = 0, updated_at = ? WHERE id = ?`)
-    .run(nowIso(), id);
+    .prepare(`UPDATE vehicles SET archived = 1, archived_at = ?, is_default = 0, updated_at = ? WHERE id = ?`)
+    .run(now, now, id);
 }
 
 export function restoreVehicle(id: string): void {
   getDb()
-    .prepare(`UPDATE vehicles SET archived = 0, updated_at = ? WHERE id = ?`)
+    .prepare(`UPDATE vehicles SET archived = 0, archived_at = NULL, updated_at = ? WHERE id = ?`)
     .run(nowIso(), id);
 }
 

@@ -115,6 +115,8 @@ export interface Vehicle {
   photoUrl: string | null;
   isDefault: boolean;
   archived: boolean;
+  /** When it was removed (ISO); null while active. */
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

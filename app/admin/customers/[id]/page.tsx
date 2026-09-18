@@ -58,7 +58,13 @@ export default async function AdminCustomerPage({ params }: { params: Promise<{ 
   const completed = appointments.filter((a) => a.status === 'completed');
   const lifetime = completed.reduce((sum, a) => sum + a.quotedTotal, 0);
 
-  const vehicles = listVehicles(customer.id, true);
+  // Removed vehicles stay in this list, restorable, for 24 hours after removal
+  // and then drop out. They leave the customer's own garage immediately; the
+  // rows are kept for booking history either way.
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  const vehicles = listVehicles(customer.id, true).filter(
+    (v) => !v.archived || (v.archivedAt ? Date.parse(v.archivedAt) > cutoff : false)
+  );
   const invoices = listInvoices({ userId: customer.id, limit: 50 });
   const payments = listPayments({ userId: customer.id, limit: 50 });
   const loyalty = getLoyaltyAccount(customer.id);
@@ -172,7 +178,16 @@ export default async function AdminCustomerPage({ params }: { params: Promise<{ 
                       <div className="flex shrink-0 gap-1.5">
                         <Badge>{sizeLabel(v.sizeClass)}</Badge>
                         {v.isDefault && <Badge tone="positive">Default</Badge>}
-                        {v.archived && <Badge tone="danger">Removed</Badge>}
+                        {v.archived && (
+                          <Badge tone="danger">
+                            Removed · gone in{' '}
+                            {Math.max(
+                              1,
+                              Math.ceil((Date.parse(v.archivedAt ?? v.updatedAt) + 24 * 60 * 60 * 1000 - Date.now()) / 3_600_000)
+                            )}
+                            h
+                          </Badge>
+                        )}
                       </div>
                       <CustomerVehicleActions id={v.id} label={vehicleLabel(v)} archived={v.archived} />
                     </div>

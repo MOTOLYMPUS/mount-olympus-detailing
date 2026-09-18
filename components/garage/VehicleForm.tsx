@@ -382,8 +382,9 @@ export default function VehicleForm({
           <input
             ref={fileRef}
             type="file"
+            // No `capture`: with it, iOS opens the camera only. Without it the
+            // sheet offers Take Photo / Photo Library / Choose File.
             accept="image/jpeg,image/png,image/webp"
-            capture="environment"
             className="sr-only"
             aria-label="Choose a photo of the vehicle"
             onChange={(e) => {
