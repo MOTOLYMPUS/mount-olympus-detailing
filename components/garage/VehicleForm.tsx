@@ -11,9 +11,12 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { InputField, SelectField, TextAreaField, ChoiceCard } from '@/components/Field';
 import { Alert, buttonClass } from '@/components/ui';
+import PhotoCropper from '@/components/garage/PhotoCropper';
+import { VEHICLE_PHOTO_ASPECT } from '@/components/garage/VehiclePhotoUploader';
+import { VEHICLE_PHOTO_ASPECT_CLASS } from '@/components/garage/VehiclePhoto';
 import { industryList, industries } from '@/lib/industries';
 import { getMakes, getModels } from '@/data/vehicles';
 import { colorsForIndustry, OTHER_COLOR } from '@/data/colors';
@@ -66,6 +69,42 @@ export default function VehicleForm({
   const [pending, setPending] = useState(false);
   const [banner, setBanner] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // STAFF MODE, new vehicle only: a photo taken on the driveway, framed with
+  // the same cropper the customer's garage uses, uploaded once the vehicle
+  // row exists (the upload needs an id to attach to). Editing keeps using the
+  // garage's own uploader, which handles replace/remove.
+  const allowPhoto = !!forUserId && !vehicle;
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [picked, setPicked] = useState<File | null>(null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  useEffect(() => {
+    if (!photoBlob) {
+      setPhotoPreview('');
+      return;
+    }
+    const url = URL.createObjectURL(photoBlob);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photoBlob]);
+
+  async function attachPhoto(vehicleId: string) {
+    if (!photoBlob) return;
+    const form = new FormData();
+    form.set('scope', 'vehicles');
+    form.append('file', photoBlob, 'vehicle.jpg');
+    const up = await fetch('/api/uploads', { method: 'POST', body: form });
+    const upData = await up.json().catch(() => ({}));
+    if (!up.ok || !upData.ok) throw new Error(upData.error ?? 'That upload failed.');
+    const res = await fetch(`/api/vehicles/${vehicleId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'setPhoto', photoUrl: upData.files[0].url }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error ?? 'Could not save the photo.');
+  }
 
   const config = industries[industry];
   const typeDef = config.vehicleTypes.find((t) => t.id === vehicleType);
@@ -144,6 +183,18 @@ export default function VehicleForm({
           setBanner(data.error ?? 'We could not save that. Please try again.');
         }
         return;
+      }
+
+      // The vehicle exists from here on; a failed photo must not leave the
+      // owner on a form whose submit would create a duplicate.
+      if (allowPhoto && photoBlob && data.vehicle?.id) {
+        try {
+          await attachPhoto(data.vehicle.id);
+        } catch (err) {
+          window.alert(
+            `Vehicle saved, but the photo did not upload (${err instanceof Error ? err.message : 'upload failed'}). You can add it from their garage.`
+          );
+        }
       }
 
       router.push(successHref);
@@ -319,8 +370,66 @@ export default function VehicleForm({
               onChange={(e) => setIsDefault(e.target.checked)}
               className="h-4 w-4 accent-[#D4001A]"
             />
-            Make this my default vehicle when booking
+            {forUserId ? 'Make this their default vehicle when booking' : 'Make this my default vehicle when booking'}
           </label>
+        </fieldset>
+      )}
+
+      {/* ── Photo (staff, new vehicle) ───────────────────────────────────── */}
+      {allowPhoto && vehicleType && (
+        <fieldset>
+          <legend className="eyebrow mb-3">Photo</legend>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            capture="environment"
+            className="sr-only"
+            aria-label="Choose a photo of the vehicle"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (file) setPicked(file);
+            }}
+          />
+          {photoPreview ? (
+            <div className="overflow-hidden rounded-sm border border-white/10">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photoPreview} alt="Vehicle photo preview" className={`${VEHICLE_PHOTO_ASPECT_CLASS} w-full object-cover`} />
+              <div className="flex gap-2 border-t border-white/10 p-2">
+                <button type="button" onClick={() => fileRef.current?.click()} className={buttonClass('secondary', 'sm')}>
+                  Change
+                </button>
+                <button type="button" onClick={() => setPhotoBlob(null)} className={buttonClass('ghost', 'sm')}>
+                  Remove
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex h-28 w-full flex-col items-center justify-center gap-1.5 rounded-sm border border-dashed border-white/20 bg-white/[0.02] text-muted transition-colors hover:bg-white/[0.05] hover:text-white"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 7h3l2-3h6l2 3h3v13H4z" />
+                <circle cx="12" cy="13" r="3.5" />
+              </svg>
+              <span className="font-mono text-[11px] uppercase tracking-widest2">Take or choose a photo</span>
+              <span className="text-[11px] text-subtle">Optional — shows on their bookings and garage.</span>
+            </button>
+          )}
+          {picked && (
+            <PhotoCropper
+              file={picked}
+              aspect={VEHICLE_PHOTO_ASPECT}
+              onCancel={() => setPicked(null)}
+              onDone={(blob) => {
+                setPicked(null);
+                setPhotoBlob(blob);
+              }}
+            />
+          )}
         </fieldset>
       )}
 

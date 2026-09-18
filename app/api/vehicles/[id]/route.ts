@@ -9,6 +9,8 @@ import {
 } from '@/lib/repo/vehicles';
 import { validateVehicle } from '@/lib/validation-account';
 import { remove } from '@/lib/uploads';
+import { canManage } from '@/lib/rbac';
+import type { User } from '@/lib/models';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,28 +23,30 @@ const VEHICLE_PHOTO_URL = /^\/api\/files\/(vehicles\/[0-9a-f-]{36}\.(jpg|png|gif
 /**
  * Ownership is checked on every verb. Returning 404 rather than 403 for
  * someone else's vehicle means the endpoint does not confirm that the id
- * exists at all.
+ * exists at all. Managers+ may reach any vehicle: they add vehicles to a
+ * customer's garage for phone bookings, photo included, and that photo is
+ * set through this same route.
  */
-function ownedOr404(id: string, userId: string) {
+function ownedOr404(id: string, user: User) {
   const vehicle = getVehicle(id);
-  return vehicle && vehicle.userId === userId ? vehicle : null;
+  return vehicle && (vehicle.userId === user.id || canManage(user.role)) ? vehicle : null;
 }
 
 export const GET = withAuth('any', async ({ user, params }) => {
-  const vehicle = ownedOr404(params.id, user.id);
+  const vehicle = ownedOr404(params.id, user);
   if (!vehicle) return fail('Vehicle not found.', 404);
   return NextResponse.json({ ok: true, vehicle });
 });
 
 export const PATCH = withAuth('any', async ({ user, params, body }) => {
-  const existing = ownedOr404(params.id, user.id);
+  const existing = ownedOr404(params.id, user);
   if (!existing) return fail('Vehicle not found.', 404);
 
   const b = (body ?? {}) as Record<string, unknown>;
 
   // Two lightweight actions that do not need the full form payload.
   if (b.action === 'setDefault') {
-    setDefaultVehicle(user.id, existing.id);
+    setDefaultVehicle(existing.userId, existing.id);
     return ok({ vehicle: getVehicle(existing.id) });
   }
   if (b.action === 'restore') {
@@ -79,7 +83,7 @@ export const PATCH = withAuth('any', async ({ user, params, body }) => {
 });
 
 export const DELETE = withAuth('any', async ({ user, params }) => {
-  const existing = ownedOr404(params.id, user.id);
+  const existing = ownedOr404(params.id, user);
   if (!existing) return fail('Vehicle not found.', 404);
 
   // Archive, never delete — appointments reference this row, and the history of

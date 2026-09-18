@@ -12,6 +12,7 @@ import { NextResponse } from 'next/server';
 import { ApiError, fail, ok, str, text, withAuth } from '@/lib/api';
 import { assignTechnician, cancelBooking, completeBooking, jobFor, rescheduleBooking } from '@/lib/booking';
 import { getAppointment, getAppointmentView, updateAppointment } from '@/lib/repo/appointments';
+import { ManualMethod, recordManualSettlement, repriceBooking } from '@/lib/invoicing';
 import { listJobPhotos } from '@/lib/repo/jobs';
 import { canEditAppointment, canManage, canViewAppointment } from '@/lib/rbac';
 import { APPOINTMENT_STATUSES, AppointmentStatus } from '@/lib/models';
@@ -70,6 +71,17 @@ export const PATCH = withAuth('any', async ({ user, params, body }) => {
       return ok({ appointment: updated });
     }
 
+    // ── Reprice (staff only) ───────────────────────────────────────────────
+    if ('quotedTotal' in b) {
+      if (!canManage(user.role)) return fail('You do not have access to that.', 403);
+      const total = typeof b.quotedTotal === 'number' ? b.quotedTotal : Number(b.quotedTotal);
+      if (!Number.isFinite(total) || total < 0 || total > 100_000) {
+        return fail('Enter a price between $0 and $100,000.', 400, { quotedTotal: 'Enter a valid price.' });
+      }
+      const result = await repriceBooking(appointment.id, total, user);
+      return ok(result);
+    }
+
     // ── Status ─────────────────────────────────────────────────────────────
     const status = str(b.status, 20) as AppointmentStatus;
     if (status) {
@@ -84,6 +96,16 @@ export const PATCH = withAuth('any', async ({ user, params, body }) => {
       }
       if (status === 'completed') {
         const updated = await completeBooking(appointment.id, user);
+        // "Complete & close" with the money already in hand: a manager may
+        // say how it was paid and the balance is recorded as settled.
+        const method = str(b.paymentMethod, 10);
+        if (canManage(user.role) && b.paymentReceived === true) {
+          if (!['cash', 'zelle', 'card', 'other'].includes(method)) {
+            return fail('How was it paid?', 400, { paymentMethod: 'Choose a payment method.' });
+          }
+          const settled = recordManualSettlement(updated, method as ManualMethod, user);
+          return ok({ appointment: updated, ...settled });
+        }
         return ok({ appointment: updated });
       }
       const updated = updateAppointment(appointment.id, { status });

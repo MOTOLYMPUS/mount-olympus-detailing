@@ -20,6 +20,7 @@ import {
   StatusBadge,
 } from '@/components/ui';
 import AppointmentActions from '@/components/admin/AppointmentActions';
+import PriceEditor from '@/components/admin/PriceEditor';
 import { mapsHref, telHref } from '@/components/staff/JobCard';
 import { requireRolePage } from '@/lib/guards';
 import { getAppointmentView } from '@/lib/repo/appointments';
@@ -296,9 +297,19 @@ export default async function AdminAppointmentPage({ params }: { params: Promise
             <CardTitle>Money</CardTitle>
             <dl>
               <Field label="Quoted">
-                {appointment.quotedTotalMax > appointment.quotedTotal
-                  ? `${formatCurrency(appointment.quotedTotal)} – ${formatCurrency(appointment.quotedTotalMax)}`
-                  : formatCurrency(appointment.quotedTotal)}
+                <PriceEditor
+                  appointmentId={appointment.id}
+                  quotedTotal={appointment.quotedTotal}
+                  quotedTotalMax={appointment.quotedTotalMax}
+                  locked={invoiceStatus === 'paid' || appointment.status === 'cancelled'}
+                  lockedReason={
+                    invoiceStatus === 'paid'
+                      ? 'Paid — refund to change'
+                      : appointment.status === 'cancelled'
+                        ? 'Cancelled'
+                        : undefined
+                  }
+                />
               </Field>
               <Field label="Deposit">{formatCurrency(appointment.depositCents / 100)}</Field>
               <Field label="Collected">{formatCurrency(paid / 100)}</Field>

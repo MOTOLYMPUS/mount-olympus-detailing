@@ -10,7 +10,7 @@
 import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import BookingFlow from '@/components/booking/BookingFlow';
-import { LinkButton, PageHeader } from '@/components/ui';
+import { LinkButton } from '@/components/ui';
 import { requireRolePage } from '@/lib/guards';
 import { getUser } from '@/lib/repo/users';
 import { listVehicles } from '@/lib/repo/vehicles';
@@ -36,16 +36,20 @@ export default async function AdminBookForCustomerPage({
 
   return (
     <div>
-      <PageHeader
-        eyebrow="Book on their behalf"
-        title={`Book for ${customer.name}`}
-        description="Same slots and pricing the customer would see. They get the confirmation email, text and push as if they had booked it themselves."
-        action={
-          <LinkButton href={`/admin/customers/${customer.id}`} variant="ghost" size="sm">
-            ← {customer.name}
-          </LinkButton>
-        }
-      />
+      {/* Terse on purpose: the wizard below is laid out to fit a phone screen
+          without scrolling, and a three-line description would eat that room.
+          The customer still gets the confirmation email, text and push. */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="eyebrow mb-1">Book on their behalf</p>
+          <h1 className="truncate font-display text-xl font-bold tracking-tightest text-white sm:text-2xl">
+            {customer.name}
+          </h1>
+        </div>
+        <LinkButton href={`/admin/customers/${customer.id}`} variant="ghost" size="sm">
+          ← Back
+        </LinkButton>
+      </div>
 
       <Suspense fallback={<div className="h-96" />}>
         <BookingFlow
@@ -56,6 +60,7 @@ export default async function AdminBookForCustomerPage({
           customerId={customer.id}
           successHref="/admin/appointments/{id}"
           addVehicleHref={`/admin/customers/${customer.id}/vehicles/new`}
+          compact
         />
       </Suspense>
     </div>

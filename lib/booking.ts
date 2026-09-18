@@ -77,6 +77,12 @@ export interface BookingRequest {
   photoUrls?: string[];
   estimateId?: string | null;
   source?: string;
+  /**
+   * STAFF ONLY — a price agreed on the phone, in dollars, that replaces the
+   * catalogue figure outright. No membership or coupon maths is applied on
+   * top (the owner named the final number), and no coupon is consumed.
+   */
+  quotedTotal?: number | null;
 }
 
 export interface PricedBooking {
@@ -182,7 +188,19 @@ export async function createBooking(
     }
   }
 
-  const pricing = priceBooking(request);
+  const priced = priceBooking(request);
+  const pricing: PricedBooking =
+    request.quotedTotal !== undefined && request.quotedTotal !== null
+      ? {
+          ...priced,
+          quotedTotal: request.quotedTotal,
+          quotedTotalMax: request.quotedTotal,
+          discountPercent: 0,
+          couponPercent: 0,
+          couponId: null,
+          couponLabel: null,
+        }
+      : priced;
 
   const travelMinutes =
     request.locationType === 'shop'

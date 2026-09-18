@@ -92,6 +92,16 @@ export const POST = withAuth(
     // Likewise, only staff choose the technician.
     const employeeId = canManage(user.role) ? (str(b.employeeId, 60) || null) : null;
 
+    // And only staff may name the price (a figure agreed on the phone). A
+    // customer posting `quotedTotal` is silently priced from the catalogue.
+    const quotedTotal =
+      canManage(user.role) && typeof b.quotedTotal === 'number' && Number.isFinite(b.quotedTotal)
+        ? Math.round(b.quotedTotal * 100) / 100
+        : null;
+    if (quotedTotal !== null && (quotedTotal < 0 || quotedTotal > 100_000)) {
+      return fail('That price is out of range.', 400, { quotedTotal: 'Enter a price between $0 and $100,000.' });
+    }
+
     const locationType = b.locationType === 'shop' ? 'shop' : 'mobile';
     const address = str(b.address, 200);
     if (locationType === 'mobile' && !address) {
@@ -118,6 +128,7 @@ export const POST = withAuth(
           photoUrls: stringArray(b.photoUrls, 10, 400),
           estimateId: str(b.estimateId, 60) || null,
           source: canManage(user.role) ? 'staff' : 'app',
+          quotedTotal,
         },
         user
       );

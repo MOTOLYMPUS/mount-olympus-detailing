@@ -25,7 +25,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { ChoiceCard, InputField, TextAreaField } from '@/components/Field';
+import { ChoiceCard, InputField, SelectField, TextAreaField } from '@/components/Field';
 import { Alert, Card, buttonClass } from '@/components/ui';
 import { Skeleton } from '@/components/visual/Skeleton';
 import { Motes } from '@/components/visual/Effects';
@@ -107,6 +107,38 @@ function SlotsSkeleton() {
   );
 }
 
+/**
+ * A one-line toggle for COMPACT mode: the same choice as a ChoiceCard, at a
+ * fifth of the height, so a whole step fits a phone screen without scrolling.
+ */
+function Chip({
+  selected,
+  onToggle,
+  multi = true,
+  children,
+}: {
+  selected: boolean;
+  onToggle: () => void;
+  multi?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role={multi ? 'checkbox' : 'radio'}
+      aria-checked={selected}
+      onClick={onToggle}
+      className={`rounded-full border px-3 py-1.5 text-left text-[13px] leading-snug transition-colors duration-200 ${
+        selected
+          ? 'border-apex bg-apex/15 text-white'
+          : 'border-white/20 text-muted hover:border-white/50 hover:text-white'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function BookingFlow({
   vehicles,
   defaultAddress,
@@ -115,6 +147,7 @@ export default function BookingFlow({
   customerId,
   successHref,
   addVehicleHref = '/app/garage/new',
+  compact = false,
 }: {
   vehicles: Vehicle[];
   defaultAddress: string;
@@ -135,6 +168,13 @@ export default function BookingFlow({
   successHref?: string;
   /** Where "add a vehicle" links go (staff mode points at the customer's admin page). */
   addVehicleHref?: string;
+  /**
+   * PHONE-FIRST STAFF LAYOUT: every step fits one phone screen with no
+   * scrolling — dropdowns for the vehicle and the time, chips instead of
+   * cards, the estimate as one line above the buttons instead of a side card.
+   * The customer's own wizard keeps the full layout.
+   */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const reduced = usePrefersReducedMotion();
@@ -160,6 +200,12 @@ export default function BookingFlow({
   const [submitting, setSubmitting] = useState(false);
   const [banner, setBanner] = useState('');
 
+  // STAFF ONLY: the price agreed on the phone. Follows the estimate until the
+  // owner types over it; only a touched, valid figure is sent, so an untouched
+  // booking is still priced by the server with the customer's discounts.
+  const [priceInput, setPriceInput] = useState('');
+  const [priceTouched, setPriceTouched] = useState(false);
+
   const vehicle = vehicles.find((v) => v.id === vehicleId);
 
   const services = useMemo(
@@ -184,6 +230,21 @@ export default function BookingFlow({
         : null,
     [vehicle, serviceIds, addOnIds, overrides]
   );
+
+  useEffect(() => {
+    if (!priceTouched) setPriceInput(estimate ? estimate.total.toFixed(2) : '');
+  }, [estimate, priceTouched]);
+
+  const priceOverride = useMemo(() => {
+    if (!customerId || !priceTouched) return null;
+    const n = Number(priceInput);
+    if (!Number.isFinite(n) || n < 0) return null;
+    // Typing the estimate back in is not an override.
+    if (estimate && Math.abs(n - estimate.total) < 0.005) return null;
+    return Math.round(n * 100) / 100;
+  }, [customerId, priceTouched, priceInput, estimate]);
+
+  const priceInvalid = priceTouched && (priceInput.trim() === '' || !Number.isFinite(Number(priceInput)) || Number(priceInput) < 0);
 
   // ── Load availability ─────────────────────────────────────────────────────
   const loadSlots = useCallback(async () => {
@@ -230,7 +291,7 @@ export default function BookingFlow({
   // ── Step gating ───────────────────────────────────────────────────────────
   const canAdvance = [
     !!vehicleId,
-    serviceIds.length > 0,
+    serviceIds.length > 0 && !priceInvalid,
     locationType === 'shop' || address.trim().length > 4,
     !!startsAt,
     true,
@@ -257,6 +318,7 @@ export default function BookingFlow({
           notes,
           // Staff mode only; ignored by the API for a customer's own session.
           ...(customerId ? { customerId } : {}),
+          ...(priceOverride !== null ? { quotedTotal: priceOverride } : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -291,15 +353,17 @@ export default function BookingFlow({
       <Alert tone="info" title="Add a vehicle first">
         We price by vehicle size, so we need to know what we are working on.{' '}
         <Link href={addVehicleHref} className="underline">
-          Add your vehicle
+          {customerId ? 'Add their vehicle' : 'Add your vehicle'}
         </Link>{' '}
         and come straight back.
       </Alert>
     );
   }
 
+  const priceShown = priceOverride ?? estimate?.total ?? null;
+
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+    <div className={compact ? 'grid gap-4' : 'grid gap-8 lg:grid-cols-[1fr_320px]'}>
       <div>
         {/* ── Progress ─────────────────────────────────────────────────────── */}
         {/* A rail under the step labels. `scaleX` on a full-width bar, not an
@@ -315,7 +379,7 @@ export default function BookingFlow({
           />
         </div>
 
-        <ol className="mb-8 flex flex-wrap gap-x-2 gap-y-1" aria-label="Booking steps">
+        <ol className={`${compact ? 'mb-4' : 'mb-8'} flex flex-wrap gap-x-2 gap-y-1`} aria-label="Booking steps">
           {STEPS.map((label, i) => (
             <li key={label} className="flex items-center gap-2">
               <span
@@ -343,7 +407,30 @@ export default function BookingFlow({
         <motion.div key={step} {...stepMotion(reduced)}>
 
         {/* ── 1. Vehicle ───────────────────────────────────────────────────── */}
-        {step === 0 && (
+        {step === 0 && compact && (
+          <div className="space-y-3">
+            <SelectField
+              label="Vehicle"
+              value={vehicleId}
+              onChange={(id) => {
+                setVehicleId(id);
+                setServiceIds([]);
+                setAddOnIds([]);
+                setStartsAt('');
+              }}
+              placeholder="Choose a vehicle…"
+              options={vehicles.map((v) => ({
+                value: v.id,
+                label: `${vehicleLabel(v)} · ${sizeLabel(v.sizeClass)}${v.color ? ` · ${v.color}` : ''}`,
+              }))}
+              required
+            />
+            <Link href={addVehicleHref} className="inline-block text-[13px] text-muted hover:text-white">
+              + Add another vehicle
+            </Link>
+          </div>
+        )}
+        {step === 0 && !compact && (
           <fieldset>
             <legend className="mb-4 font-display text-xl font-semibold text-white">
               Which vehicle?
@@ -376,7 +463,114 @@ export default function BookingFlow({
         )}
 
         {/* ── 2. Services ──────────────────────────────────────────────────── */}
-        {step === 1 && vehicle && (
+        {step === 1 && vehicle && compact && (
+          <div className="space-y-4">
+            <fieldset>
+              <legend className="mb-2 font-display text-lg font-semibold text-white">
+                What are we doing?
+              </legend>
+              <div className="flex flex-wrap gap-1.5">
+                {services.map((s) => {
+                  const price = priceFor(s, vehicle.sizeClass, overrides);
+                  return (
+                    <Chip
+                      key={s.id}
+                      selected={serviceIds.includes(s.id)}
+                      onToggle={() =>
+                        setServiceIds((prev) =>
+                          prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id]
+                        )
+                      }
+                    >
+                      {s.name}
+                      <span className="ml-1.5 font-mono text-[11px] opacity-70">
+                        {price ? formatPrice(price.price, price.priceMax) : '—'}
+                      </span>
+                    </Chip>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            {addOns.length > 0 && (
+              <fieldset>
+                <legend className="mb-2 font-mono text-[11px] uppercase tracking-widest2 text-subtle">
+                  Add-ons
+                </legend>
+                <div className="flex flex-wrap gap-1.5">
+                  {addOns.map((a) => {
+                    const price = priceFor(a, vehicle.sizeClass, overrides);
+                    return (
+                      <Chip
+                        key={a.id}
+                        selected={addOnIds.includes(a.id)}
+                        onToggle={() =>
+                          setAddOnIds((prev) =>
+                            prev.includes(a.id) ? prev.filter((x) => x !== a.id) : [...prev, a.id]
+                          )
+                        }
+                      >
+                        + {a.name}
+                        <span className="ml-1.5 font-mono text-[11px] opacity-70">
+                          {price ? formatPrice(price.price, price.priceMax) : '—'}
+                        </span>
+                      </Chip>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
+
+            {customerId && serviceIds.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <label
+                  htmlFor="booking-price"
+                  className="font-mono text-[11px] uppercase tracking-widest2 text-subtle"
+                >
+                  Price
+                </label>
+                <div className="flex items-stretch gap-2">
+                  <div className="relative min-w-0 flex-1">
+                    <span className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm text-subtle">
+                      $
+                    </span>
+                    <input
+                      id="booking-price"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step="0.01"
+                      value={priceInput}
+                      onChange={(e) => {
+                        setPriceTouched(true);
+                        setPriceInput(e.target.value);
+                      }}
+                      aria-invalid={priceInvalid || undefined}
+                      className="input-field pl-8 font-mono"
+                    />
+                  </div>
+                  {priceTouched && (
+                    <button
+                      type="button"
+                      onClick={() => setPriceTouched(false)}
+                      className={buttonClass('ghost', 'sm', 'shrink-0 self-stretch')}
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
+                <p className="text-[12px] leading-snug text-subtle">
+                  {priceInvalid
+                    ? 'Enter a valid price.'
+                    : priceOverride !== null
+                      ? 'Replaces the catalogue price. No membership or coupon discount is applied on top.'
+                      : `Catalogue price${estimate ? ` ${formatPrice(estimate.total, estimate.totalMax)}` : ''}. Type over it if you agreed something else.`}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+        {step === 1 && vehicle && !compact && (
           <div className="space-y-8">
             <fieldset>
               <legend className="mb-4 font-display text-xl font-semibold text-white">
@@ -433,7 +627,57 @@ export default function BookingFlow({
         )}
 
         {/* ── 3. Where ─────────────────────────────────────────────────────── */}
-        {step === 2 && (
+        {step === 2 && compact && (
+          <div className="space-y-4">
+            <fieldset>
+              <legend className="mb-2 font-display text-lg font-semibold text-white">
+                Where?
+              </legend>
+              <div className="flex flex-wrap gap-1.5">
+                <Chip
+                  multi={false}
+                  selected={locationType === 'mobile'}
+                  onToggle={() => {
+                    setLocationType('mobile');
+                    setStartsAt('');
+                  }}
+                >
+                  We come to them
+                </Chip>
+                <Chip
+                  multi={false}
+                  selected={locationType === 'shop'}
+                  onToggle={() => {
+                    setLocationType('shop');
+                    setStartsAt('');
+                  }}
+                >
+                  Drop-off at the shop
+                </Chip>
+              </div>
+            </fieldset>
+
+            {locationType === 'mobile' && (
+              <InputField
+                label="Address"
+                value={address}
+                onChange={setAddress}
+                maxLength={200}
+                required
+                autoComplete="street-address"
+              />
+            )}
+
+            <TextAreaField
+              label="Notes"
+              value={notes}
+              onChange={setNotes}
+              rows={2}
+              maxLength={2000}
+            />
+          </div>
+        )}
+        {step === 2 && !compact && (
           <div className="space-y-6">
             <fieldset>
               <legend className="mb-4 font-display text-xl font-semibold text-white">
@@ -488,8 +732,8 @@ export default function BookingFlow({
 
         {/* ── 4. When ──────────────────────────────────────────────────────── */}
         {step === 3 && (
-          <div className="space-y-6">
-            <h2 className="font-display text-xl font-semibold text-white">Pick a time</h2>
+          <div className={compact ? 'space-y-4' : 'space-y-6'}>
+            <h2 className={`font-display ${compact ? 'text-lg' : 'text-xl'} font-semibold text-white`}>Pick a time</h2>
 
             {/* The shimmer replaces the old "Checking the calendar…" line. Same
                 `loadingSlots` state, same fetch — it just occupies the space the
@@ -547,9 +791,52 @@ export default function BookingFlow({
                   })}
                 </div>
 
+                {/* COMPACT: one dropdown, grouped by part of day, instead of a
+                    wall of chips — a full day of half-hour slots would push the
+                    Continue button off a phone screen. */}
+                {selectedDay && compact && (
+                  <div className="space-y-2">
+                    {selectedDay.openCount === 0 ? (
+                      <Alert tone="info">
+                        {selectedDay.closedReason ?? 'Nothing free that day. Try another.'}
+                      </Alert>
+                    ) : (
+                      <>
+                        <label
+                          htmlFor="booking-time"
+                          className="font-mono text-[11px] uppercase tracking-widest2 text-subtle"
+                        >
+                          Time
+                        </label>
+                        <select
+                          id="booking-time"
+                          className="input-field"
+                          value={startsAt}
+                          onChange={(e) => setStartsAt(e.target.value)}
+                        >
+                          <option value="">Choose a time…</option>
+                          {(['morning', 'afternoon', 'evening'] as const).map((period) => {
+                            const slots = selectedDay.slots.filter((s) => s.period === period && s.available);
+                            if (!slots.length) return null;
+                            return (
+                              <optgroup key={period} label={period[0].toUpperCase() + period.slice(1)}>
+                                {slots.map((s) => (
+                                  <option key={s.startsAt} value={s.startsAt}>
+                                    {s.label}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            );
+                          })}
+                        </select>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {/* Times, grouped by part of day — a 7am and a 6pm slot are very
                     different propositions and should not sit in one flat list. */}
-                {selectedDay && (
+                {selectedDay && !compact && (
                   <div className="space-y-5">
                     {(['morning', 'afternoon', 'evening'] as const).map((period) => {
                       const slots = selectedDay.slots.filter(
@@ -611,7 +898,42 @@ export default function BookingFlow({
             What it does NOT do: obscure a single figure. Every value in the
             summary sits above the decoration at full contrast, because this is
             also the last chance to notice a wrong address. */}
-        {step === 4 && vehicle && (
+        {step === 4 && vehicle && compact && (
+          <div className="space-y-3">
+            <h2 className="font-display text-lg font-semibold text-white">Confirm</h2>
+            <Card className="!p-4">
+              <dl className="text-sm">
+                <Row label="Vehicle">{vehicleLabel(vehicle)}</Row>
+                <Row label="When">
+                  {startsAt
+                    ? new Date(startsAt).toLocaleString('en-US', {
+                        weekday: 'short',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })
+                    : '—'}
+                </Row>
+                <Row label="Where">{locationType === 'mobile' ? address : 'Our shop'}</Row>
+                <Row label="Services">
+                  {[
+                    ...serviceIds.map((id) => services.find((s) => s.id === id)?.name),
+                    ...addOnIds.map((id) => addOns.find((a) => a.id === id)?.name),
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}
+                </Row>
+                <Row label="Price">
+                  {priceShown !== null ? formatPrice(priceShown, priceOverride ?? estimate?.totalMax ?? priceShown) : '—'}
+                  {priceOverride !== null && <span className="ml-1.5 text-[11px] text-subtle">set by you</span>}
+                </Row>
+                {notes && <Row label="Notes">{notes}</Row>}
+              </dl>
+            </Card>
+          </div>
+        )}
+        {step === 4 && vehicle && !compact && (
           <div className="relative space-y-5">
             <div className="pointer-events-none absolute inset-0 -z-10 isolate" aria-hidden="true">
               <Motes kind="dust" count={10} />
@@ -675,7 +997,22 @@ export default function BookingFlow({
         </motion.div>
 
         {/* ── Navigation ───────────────────────────────────────────────────── */}
-        <div className="mt-10 flex items-center justify-between gap-3">
+        {compact && (
+          <p className="mt-5 flex items-baseline justify-between gap-3 border-t border-white/10 pt-3 text-sm">
+            <span className="text-muted">{priceOverride !== null ? 'Price' : 'Estimate'}</span>
+            <span className="font-display text-lg font-bold text-white">
+              {priceShown !== null
+                ? formatPrice(priceShown, priceOverride ?? estimate?.totalMax ?? priceShown)
+                : '—'}
+              {estimate && (
+                <span className="ml-2 font-body text-[12px] font-normal text-subtle">
+                  ~{formatHours(estimate.estimatedHours)}
+                </span>
+              )}
+            </span>
+          </p>
+        )}
+        <div className={`${compact ? 'mt-3' : 'mt-10'} flex items-center justify-between gap-3`}>
           <button
             type="button"
             onClick={() => setStep((s) => Math.max(0, s - 1))}
@@ -708,6 +1045,7 @@ export default function BookingFlow({
       </div>
 
       {/* ── Running summary ────────────────────────────────────────────────── */}
+      {!compact && (
       <aside className="lg:sticky lg:top-20 lg:self-start">
         <Card>
           <p className="eyebrow mb-4">Your estimate</p>
@@ -750,6 +1088,7 @@ export default function BookingFlow({
           )}
         </Card>
       </aside>
+      )}
     </div>
   );
 }

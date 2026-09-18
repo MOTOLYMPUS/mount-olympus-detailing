@@ -21,11 +21,12 @@ import { getAddOn, getService } from '@/data/pricing';
 import { siteUrl } from './business';
 import { completeBooking } from './booking';
 import { ApiError } from './api';
-import { Appointment, Invoice, InvoiceLine, User } from './models';
+import { Appointment, Invoice, InvoiceLine, Payment, User } from './models';
 import { sendInvoiceNotice } from './notify-account';
 import { priceFor } from './pricing';
 import { notifyUser } from './push';
-import { getAppointment } from './repo/appointments';
+import { getAppointment, updateAppointment } from './repo/appointments';
+import { AUDIT, audit } from './repo/audit';
 import {
   createInvoice,
   createPayment,
@@ -82,7 +83,132 @@ export function buildInvoiceLines(appointment: Appointment): { lines: InvoiceLin
 
   const subtotal = lines.reduce((s, l) => s + l.qty * l.unitCents, 0);
   const quoted = Math.round(appointment.quotedTotal * 100);
+
+  // A price the owner set ABOVE the catalogue (extra work agreed on the phone)
+  // shows as its own line, so the invoice still adds up to what was quoted.
+  if (quoted > subtotal) {
+    lines.push({ label: 'Price adjustment', qty: 1, unitCents: quoted - subtotal });
+    return { lines, discountCents: 0 };
+  }
   return { lines, discountCents: Math.max(0, subtotal - quoted) };
+}
+
+/**
+ * Change what a booking costs, after the fact. Managers only (the route
+ * checks). The new figure replaces the quoted total outright — it is the
+ * number the owner agreed with the customer, so no discount maths on top.
+ *
+ * If an unpaid invoice already stands it is voided and re-raised at the new
+ * price, and the customer is told again; a PAID invoice cannot be repriced
+ * (refund and re-invoice instead).
+ */
+export async function repriceBooking(
+  appointmentId: string,
+  totalDollars: number,
+  actor: User
+): Promise<{ appointment: Appointment; invoice: Invoice | null }> {
+  const existing = getAppointment(appointmentId);
+  if (!existing) throw new ApiError('Booking not found.', 404);
+  if (existing.status === 'cancelled') throw new ApiError('A cancelled booking cannot be repriced.', 409);
+
+  const current = openInvoiceFor(existing.id);
+  if (current?.status === 'paid') {
+    throw new ApiError('This invoice is already paid. Refund it and raise a new one instead.', 409);
+  }
+
+  const total = Math.round(totalDollars * 100) / 100;
+  const appointment = updateAppointment(existing.id, { quotedTotal: total, quotedTotalMax: total });
+  if (!appointment) throw new ApiError('Booking not found.', 404);
+
+  audit({
+    actorId: actor.id,
+    actorRole: actor.role,
+    action: AUDIT.APPOINTMENT_UPDATE,
+    entity: 'appointment',
+    entityId: appointment.id,
+    meta: { reference: appointment.reference, from: existing.quotedTotal, to: total },
+  });
+
+  if (!current) return { appointment, invoice: null };
+
+  setInvoiceStatus(current.id, 'void');
+  const { lines, discountCents } = buildInvoiceLines(appointment);
+  const invoice = createInvoice({
+    userId: appointment.customerId,
+    appointmentId: appointment.id,
+    lines,
+    discountCents,
+    status: current.status === 'draft' ? 'draft' : 'sent',
+  });
+
+  const customer = getUser(appointment.customerId);
+  if (customer && invoice.status === 'sent') {
+    const payUrl = `${siteUrl}/app/appointments/${appointment.id}`;
+    sendInvoiceNotice(customer, appointment, invoice, payUrl).catch((e) =>
+      console.error('[invoicing] invoice notice failed', e)
+    );
+    notifyUser(customer.id, {
+      kind: 'invoice.sent',
+      title: `Invoice updated — $${(invoice.totalCents / 100).toFixed(2)}`,
+      body: `${invoice.number} replaces ${current.number}. Tap to view and pay.`,
+      url: `/app/appointments/${appointment.id}`,
+    }).catch((e) => console.error('[invoicing] notify failed', e));
+  }
+
+  return { appointment, invoice };
+}
+
+export type ManualMethod = 'cash' | 'zelle' | 'card' | 'other';
+
+const MANUAL_LABEL: Record<ManualMethod, string> = {
+  cash: 'Cash',
+  zelle: 'Zelle',
+  card: 'Card (outside the app)',
+  other: 'Other',
+};
+
+/**
+ * "Complete & close": the customer already paid (cash on the driveway, Zelle,
+ * a card run outside the app). Records whatever is still owed as ONE manual
+ * payment so the ledger, the review gate and the customer's history all show
+ * the job settled, and marks an open invoice paid if one was sent. Nothing is
+ * recorded when the balance is already covered.
+ */
+export function recordManualSettlement(
+  appointment: Appointment,
+  method: ManualMethod,
+  actor: User
+): { payment: Payment | null; invoice: Invoice | null } {
+  const invoice = openInvoiceFor(appointment.id);
+  const owed = invoice && invoice.status !== 'void' ? invoice.totalCents : Math.round(appointment.quotedTotal * 100);
+  const remaining = owed - paidForAppointment(appointment.id);
+
+  let payment: Payment | null = null;
+  if (remaining > 0) {
+    payment = createPayment({
+      appointmentId: appointment.id,
+      userId: appointment.customerId,
+      kind: 'balance',
+      amountCents: remaining,
+      status: 'succeeded',
+      provider: 'manual',
+      methodLabel: MANUAL_LABEL[method],
+    });
+  }
+
+  let settled = invoice;
+  if (invoice && invoice.status !== 'paid') settled = setInvoiceStatus(invoice.id, 'paid');
+
+  audit({
+    actorId: actor.id,
+    actorRole: actor.role,
+    action: AUDIT.APPOINTMENT_UPDATE,
+    entity: 'appointment',
+    entityId: appointment.id,
+    meta: { reference: appointment.reference, settled: method, amountCents: payment?.amountCents ?? 0 },
+  });
+
+  return { payment, invoice: settled };
 }
 
 export async function completeAndInvoice(
