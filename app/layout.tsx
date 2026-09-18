@@ -105,6 +105,11 @@ export const viewport: Viewport = {
   colorScheme: 'dark',
   width: 'device-width',
   initialScale: 1,
+  // No pinch-zoom: an accidental zoom inside the installed app left the page
+  // stuck off-centre with no obvious way back. Text is sized for phones
+  // throughout, and iOS still honours its accessibility zoom regardless.
+  maximumScale: 1,
+  userScalable: false,
   // Lay the page out edge to edge on notched phones. Without this the
   // installed app is inset below the (translucent) status bar, so scrolled
   // content shows through that strip UNBLURRED while the sticky header below
