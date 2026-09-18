@@ -69,6 +69,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       case 'charge.refunded':
         handleChargeRefunded(event.data.object);
         break;
+      case 'refund.updated':
+        // Newer API versions no longer embed the refund list in the charge
+        // payload, so this is the reliable signal. Idempotent with the above:
+        // both key on the refund's own id.
+        handleRefundUpdated(event.data.object);
+        break;
       default:
         // Verified but uninteresting. 200 so Stripe stops delivering it.
         break;
@@ -158,6 +164,30 @@ async function handleCheckoutCompleted(session: Record<string, any>): Promise<vo
       });
     }
   }
+}
+
+/** One refund object, from `refund.updated`. Recorded once it has succeeded. */
+function handleRefundUpdated(refund: Record<string, any>): void {
+  const refundId = String(refund.id ?? '');
+  if (!refundId || refund.status !== 'succeeded') return;
+  if (getPaymentByProviderRef(refundId)) return; // already recorded
+
+  const paymentIntent =
+    typeof refund.payment_intent === 'string'
+      ? refund.payment_intent
+      : (refund.payment_intent?.id ?? null);
+  const original = paymentIntent ? getPaymentByProviderRef(paymentIntent) : null;
+
+  createPayment({
+    appointmentId: original?.appointmentId ?? null,
+    userId: original?.userId ?? null,
+    kind: 'refund',
+    amountCents: Number(refund.amount) || 0,
+    status: 'succeeded',
+    provider: 'stripe',
+    providerRef: refundId,
+    methodLabel: 'Card refund',
+  });
 }
 
 function handleChargeRefunded(charge: Record<string, any>): void {
