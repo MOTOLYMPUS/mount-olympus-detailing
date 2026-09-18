@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { Archivo, Inter, JetBrains_Mono } from 'next/font/google';
 import { business, siteUrl } from '@/lib/business';
 import ServiceWorkerRegistrar from '@/components/pwa/ServiceWorkerRegistrar';
@@ -121,10 +122,22 @@ export const viewport: Viewport = {
 // size of the rest of this PWA task, this was judged the right thing to skip
 // — see the final report for this called out explicitly.
 
+// Uncaught-error beacon → POST /api/client-error. Deliberately ES5 with no
+// dependencies and injected `beforeInteractive`, so it runs on any browser
+// BEFORE the app bundle — including a browser where that bundle then fails.
+// That is the whole point: a device with no dev tools (an old iPad) can still
+// tell the server log what went wrong. Capped at five reports per page.
+const CLIENT_ERROR_BEACON = `(function(){var n=0;function send(p){if(n++>4)return;try{p.url=location.href;var b=JSON.stringify(p);if(navigator.sendBeacon){navigator.sendBeacon('/api/client-error',new Blob([b],{type:'application/json'}))}else{var x=new XMLHttpRequest();x.open('POST','/api/client-error',true);x.setRequestHeader('Content-Type','application/json');x.send(b)}}catch(e){}}
+window.addEventListener('error',function(e){var t=e.target;send({message:String(e.message||(e.error&&e.error.message)||('resource failed: '+((t&&(t.src||t.href))||'')) ),source:String(e.filename||(t&&(t.src||t.href))||''),line:e.lineno||0,col:e.colno||0,stack:String((e.error&&e.error.stack)||'').slice(0,600)})},true);
+window.addEventListener('unhandledrejection',function(e){var r=e.reason||{};send({message:'unhandledrejection: '+String(r.message||r),source:'',line:0,col:0,stack:String(r.stack||'').slice(0,600)})});})();`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="bg-obsidian text-white font-body antialiased">
+        <Script id="client-error-beacon" strategy="beforeInteractive">
+          {CLIENT_ERROR_BEACON}
+        </Script>
         <JsReady />
         <OfflineBanner />
         {children}
