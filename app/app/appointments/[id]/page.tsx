@@ -81,6 +81,9 @@ export default async function AppointmentPage({
         </Alert>
       )}
 
+      {/* Before completion: the booking and the work. After completion these
+          fold into the single Invoice card below, Joist-style. */}
+      {appointment.status !== 'completed' && (
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardTitle>Booking</CardTitle>
@@ -135,6 +138,7 @@ export default async function AppointmentPage({
           )}
         </Card>
       </div>
+      )}
 
       {/* ── Photos ─────────────────────────────────────────────────────────────
           These stay a plain <img>. They are customer uploads served from
@@ -228,47 +232,81 @@ export default async function AppointmentPage({
           payment (a paid invoice, or cash/Zelle recorded by the shop). */}
       {appointment.status === 'completed' && (
         <Card>
-          <CardTitle action={invoice ? <StatusBadge status={invoice.status} /> : undefined}>
-            {settled ? 'Paid — thank you' : 'Invoice'}
-          </CardTitle>
+          <CardTitle action={invoice ? <StatusBadge status={invoice.status} /> : undefined}>Invoice</CardTitle>
 
-          {invoice && (
-            <div className="mb-4">
-              <p className="font-mono text-[12px] text-subtle">Invoice {invoice.number}</p>
-              <ul className="mt-2 divide-y divide-white/5 text-sm">
-                {invoice.lines.map((l, i) => (
-                  <li key={i} className="flex justify-between gap-3 py-1.5">
-                    <span className="text-muted">
-                      {l.label}
-                      {l.qty > 1 ? ` × ${l.qty}` : ''}
-                    </span>
-                    <span className="font-mono text-white">${((l.qty * l.unitCents) / 100).toFixed(2)}</span>
-                  </li>
-                ))}
-                {invoice.discountCents > 0 && (
-                  <li className="flex justify-between gap-3 py-1.5">
-                    <span className="text-muted">Discount</span>
-                    <span className="font-mono text-emerald-400">−${(invoice.discountCents / 100).toFixed(2)}</span>
-                  </li>
-                )}
-                <li className="flex justify-between gap-3 py-2">
-                  <span className="text-white">Total</span>
-                  <span className="font-display text-lg font-bold text-white">
-                    ${(invoice.totalCents / 100).toFixed(2)}
-                  </span>
-                </li>
-                {tipsPaid > 0 && (
-                  <li className="flex justify-between gap-3 py-1.5">
-                    <span className="text-muted">Tip — thank you</span>
-                    <span className="font-mono text-white">${(tipsPaid / 100).toFixed(2)}</span>
-                  </li>
-                )}
-              </ul>
+          {/* ── Header: vehicle first, then the invoice identity ── */}
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-4">
+            <div className="min-w-0">
+              <p className="font-display text-xl font-semibold text-white">{appointment.vehicleLabel ?? 'Vehicle'}</p>
+              <p className="text-[12px] text-subtle">
+                {sizeLabel(appointment.sizeClass)}
+                {appointment.locationType === 'mobile' && appointment.address ? ` · ${appointment.address}` : ' · Our shop'}
+              </p>
             </div>
+            <div className="text-right">
+              {invoice && <p className="font-mono text-[12px] text-white">{invoice.number}</p>}
+              <p className="text-[12px] text-subtle">{formatDateTime(appointment.startsAt, config.timezone)}</p>
+              {settled && <p className="mt-1 font-mono text-[11px] uppercase tracking-widest2 text-emerald-400">Paid</p>}
+            </div>
+          </div>
+
+          {/* ── Line items, Joist-style: Item / Qty / Unit / Amount ── */}
+          {invoice ? (
+            <table className="mt-3 w-full text-sm">
+              <thead>
+                <tr className="font-mono text-[10px] uppercase tracking-widest2 text-subtle">
+                  <th className="py-2 text-left font-normal">Service</th>
+                  <th className="py-2 text-right font-normal">Qty</th>
+                  <th className="py-2 text-right font-normal">Unit</th>
+                  <th className="py-2 text-right font-normal">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {invoice.lines.map((l, i) => (
+                  <tr key={i}>
+                    <td className="py-2.5 pr-2 text-white">{l.label}</td>
+                    <td className="py-2.5 pl-3 text-right font-mono text-muted">{l.qty}</td>
+                    <td className="py-2.5 pl-3 text-right font-mono text-muted">${(l.unitCents / 100).toFixed(2)}</td>
+                    <td className="py-2.5 pl-3 text-right font-mono text-white">${((l.qty * l.unitCents) / 100).toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                {invoice.discountCents > 0 && (
+                  <tr>
+                    <td colSpan={3} className="pt-3 text-right text-muted">Discount</td>
+                    <td className="pt-3 text-right font-mono text-emerald-400">−${(invoice.discountCents / 100).toFixed(2)}</td>
+                  </tr>
+                )}
+                <tr>
+                  <td colSpan={3} className="pt-3 text-right text-white">Total</td>
+                  <td className="pt-3 text-right font-display text-xl font-bold text-white">
+                    ${(invoice.totalCents / 100).toFixed(2)}
+                  </td>
+                </tr>
+                {tipsPaid > 0 && (
+                  <tr>
+                    <td colSpan={3} className="pt-1 text-right text-muted">Tip — thank you</td>
+                    <td className="pt-1 text-right font-mono text-white">${(tipsPaid / 100).toFixed(2)}</td>
+                  </tr>
+                )}
+              </tfoot>
+            </table>
+          ) : (
+            <ul className="mt-3 space-y-1 text-sm">
+              {services.map((s) => (
+                <li key={s!.id} className="text-white">{s!.name}</li>
+              ))}
+              {addOns.map((a) => (
+                <li key={a!.id} className="text-muted">+ {a!.name}</li>
+              ))}
+            </ul>
           )}
 
           {!settled && invoice && canPayByCard && (
-            <InvoicePay invoiceId={invoice.id} totalCents={invoice.totalCents} number={invoice.number} />
+            <div className="mt-5 border-t border-white/10 pt-5">
+              <InvoicePay invoiceId={invoice.id} totalCents={invoice.totalCents} number={invoice.number} />
+            </div>
           )}
           {!settled && invoice && !canPayByCard && (
             <p className="text-sm text-muted">

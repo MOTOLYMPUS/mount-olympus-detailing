@@ -67,11 +67,12 @@ export default function InvoicePay({
 
   return (
     <div className="space-y-4">
-      <div>
-        <p className="mb-2 font-mono text-[11px] uppercase tracking-widest2 text-subtle">
+      {/* Tip choices, centred */}
+      <div className="text-center">
+        <p className="mb-3 font-mono text-[11px] uppercase tracking-widest2 text-subtle">
           Add a tip for your technician
         </p>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Tip">
+        <div className="flex flex-wrap justify-center gap-2" role="group" aria-label="Tip">
           {PRESETS.map((p) => (
             <button key={p} type="button" onClick={() => setChoice(p)} className={pill(choice === p)}>
               {p}% <span className="text-subtle">· {money(Math.round((totalCents * p) / 100))}</span>
@@ -85,7 +86,7 @@ export default function InvoicePay({
           </button>
         </div>
         {choice === 'custom' && (
-          <label className="mt-2 flex items-center gap-2 text-sm text-muted">
+          <label className="mt-3 inline-flex items-center gap-2 text-sm text-muted">
             $
             <input
               type="number"
@@ -101,26 +102,20 @@ export default function InvoicePay({
             />
           </label>
         )}
+        {tipCents > 0 && (
+          <p className="mt-3 text-sm text-muted">
+            Invoice {number} {money(totalCents)} + tip {money(tipCents)}
+          </p>
+        )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4">
-        <div className="text-sm text-muted">
-          <p>
-            Invoice {number}: <span className="text-white">{money(totalCents)}</span>
-          </p>
-          {tipCents > 0 && (
-            <p>
-              Tip: <span className="text-white">{money(tipCents)}</span>
-            </p>
-          )}
-        </div>
-        <button type="button" disabled={busy} onClick={pay} className={buttonClass('primary', 'md')}>
-          {busy ? 'Opening…' : `Pay ${money(totalCents + tipCents)}`}
-        </button>
-      </div>
+      {/* Pay button spans the card */}
+      <button type="button" disabled={busy} onClick={pay} className={buttonClass('primary', 'md', 'w-full')}>
+        {busy ? 'Opening…' : `Pay ${money(totalCents + tipCents)}`}
+      </button>
 
       {error && (
-        <p role="alert" className="text-[13px] text-flare">
+        <p role="alert" className="text-center text-[13px] text-flare">
           {error}
         </p>
       )}
