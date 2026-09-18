@@ -153,6 +153,19 @@ select.input-field:not(:disabled) {
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
+   IMAGES ARE NOT DRAGGABLE
+   ───────────────────────────────────────────────────────────────────────────
+   Photos here are part of the interface (a vehicle's card, a job's before /
+   after), not documents to pull off the page. Without this, pressing and
+   dragging a garage photo tore a ghost copy loose on desktop, and a long
+   press on iPhone offered to save it. */
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
    VEHICLE PHOTO FADE
    ───────────────────────────────────────────────────────────────────────────
    A mask on the IMAGE ITSELF rather than a dark gradient painted over it. A

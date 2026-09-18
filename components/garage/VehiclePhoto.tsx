@@ -58,6 +58,7 @@ export function VehiclePhotoHeader({
         src={src}
         alt={alt}
         loading="lazy"
+        draggable={false}
         className="photo-fade h-full w-full object-cover object-center"
       />
       {children && <div className="absolute bottom-2 right-2 flex gap-1.5">{children}</div>}
@@ -80,6 +81,7 @@ export function VehiclePhotoBackdrop({ src, className }: { src: string | null | 
         src={src}
         alt=""
         loading="lazy"
+        draggable={false}
         className="photo-fade h-full w-full object-cover object-center opacity-[0.18]"
       />
     </div>
@@ -102,6 +104,7 @@ export function VehicleThumb({
       src={src}
       alt={alt}
       loading="lazy"
+      draggable={false}
       className={clsx(
         'h-11 w-11 shrink-0 rounded-sm border border-white/10 object-cover',
         className
