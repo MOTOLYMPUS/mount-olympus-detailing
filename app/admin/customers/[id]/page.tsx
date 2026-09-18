@@ -35,6 +35,7 @@ import { getSchedulingConfig } from '@/lib/repo/settings';
 import { listEstimateRequestsByEmail } from '@/lib/db';
 import { vehicleLabel } from '@/lib/models';
 import { VehicleThumb } from '@/components/garage/VehiclePhoto';
+import CustomerVehicleActions from '@/components/admin/CustomerVehicleActions';
 import { formatDate, formatDateTime, relativeTime } from '@/lib/timezone';
 import { formatCurrency } from '@/lib/pricing';
 import { getService } from '@/data/pricing';
@@ -167,10 +168,13 @@ export default async function AdminCustomerPage({ params }: { params: Promise<{ 
                         </p>
                       </div>
                     </div>
-                    <div className="flex shrink-0 gap-1.5">
-                      <Badge>{sizeLabel(v.sizeClass)}</Badge>
-                      {v.isDefault && <Badge tone="positive">Default</Badge>}
-                      {v.archived && <Badge tone="danger">Archived</Badge>}
+                    <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+                      <div className="flex shrink-0 gap-1.5">
+                        <Badge>{sizeLabel(v.sizeClass)}</Badge>
+                        {v.isDefault && <Badge tone="positive">Default</Badge>}
+                        {v.archived && <Badge tone="danger">Removed</Badge>}
+                      </div>
+                      <CustomerVehicleActions id={v.id} label={vehicleLabel(v)} archived={v.archived} />
                     </div>
                   </li>
                 ))}
