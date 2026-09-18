@@ -56,6 +56,14 @@ export default async function AppointmentPage({
   const services = appointment.serviceIds.map((id) => getService(id)).filter(Boolean);
   const addOns = appointment.addOnIds.map((id) => getAddOn(id)).filter(Boolean);
 
+  // What each invoice line entails, keyed by the line's label (invoice lines
+  // are built from these same catalogue names in lib/invoicing.ts).
+  const lineDetails = new Map<string, string[]>();
+  for (const s of services) {
+    lineDetails.set(s!.name, s!.includes?.length ? s!.includes : [s!.shortDescription]);
+  }
+  for (const a of addOns) lineDetails.set(a!.name, [a!.description]);
+
   return (
     <div className="max-w-4xl space-y-8">
       <PageHeader
@@ -250,43 +258,73 @@ export default async function AppointmentPage({
             </div>
           </div>
 
-          {/* ── Line items, Joist-style: Item / Qty / Unit / Amount ── */}
+          {/* ── Line items, Joist-style: Service / Qty / Amount. Each service
+              has a native <details> expander (no JS needed — it works even on
+              a browser where the bundle fails) listing what it includes. ── */}
           {invoice ? (
             <table className="mt-3 w-full text-sm">
               <thead>
                 <tr className="font-mono text-[10px] uppercase tracking-widest2 text-subtle">
                   <th className="py-2 text-left font-normal">Service</th>
                   <th className="py-2 text-right font-normal">Qty</th>
-                  <th className="py-2 text-right font-normal">Unit</th>
                   <th className="py-2 text-right font-normal">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {invoice.lines.map((l, i) => (
-                  <tr key={i}>
-                    <td className="py-2.5 pr-2 text-white">{l.label}</td>
-                    <td className="py-2.5 pl-3 text-right font-mono text-muted">{l.qty}</td>
-                    <td className="py-2.5 pl-3 text-right font-mono text-muted">${(l.unitCents / 100).toFixed(2)}</td>
-                    <td className="py-2.5 pl-3 text-right font-mono text-white">${((l.qty * l.unitCents) / 100).toFixed(2)}</td>
-                  </tr>
-                ))}
+                {invoice.lines.map((l, i) => {
+                  const bullets = lineDetails.get(l.label) ?? [];
+                  return (
+                    <tr key={i} className="align-top">
+                      <td className="py-2.5 pr-2 text-white">
+                        {bullets.length > 0 ? (
+                          <details className="group">
+                            <summary className="flex cursor-pointer list-none items-start gap-2 [&::-webkit-details-marker]:hidden">
+                              <span
+                                aria-hidden="true"
+                                className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-white/25 font-mono text-[11px] leading-none text-muted group-open:border-apex group-open:text-flare"
+                              >
+                                <span className="group-open:hidden">+</span>
+                                <span className="hidden group-open:inline">−</span>
+                              </span>
+                              <span>
+                                {l.label}
+                                <span className="block text-[11px] text-subtle group-open:hidden">Tap for details</span>
+                              </span>
+                            </summary>
+                            <ul className="mt-2 space-y-1 pl-6">
+                              {bullets.map((b) => (
+                                <li key={b} className="text-[12px] leading-relaxed text-muted">
+                                  · {b}
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        ) : (
+                          l.label
+                        )}
+                      </td>
+                      <td className="py-2.5 pl-3 text-right font-mono text-muted">{l.qty}</td>
+                      <td className="py-2.5 pl-3 text-right font-mono text-white">${((l.qty * l.unitCents) / 100).toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 {invoice.discountCents > 0 && (
                   <tr>
-                    <td colSpan={3} className="pt-3 text-right text-muted">Discount</td>
+                    <td colSpan={2} className="pt-3 text-right text-muted">Discount</td>
                     <td className="pt-3 text-right font-mono text-emerald-400">−${(invoice.discountCents / 100).toFixed(2)}</td>
                   </tr>
                 )}
                 <tr>
-                  <td colSpan={3} className="pt-3 text-right text-white">Total</td>
+                  <td colSpan={2} className="pt-3 text-right text-white">Total</td>
                   <td className="pt-3 text-right font-display text-xl font-bold text-white">
                     ${(invoice.totalCents / 100).toFixed(2)}
                   </td>
                 </tr>
                 {tipsPaid > 0 && (
                   <tr>
-                    <td colSpan={3} className="pt-1 text-right text-muted">Tip — thank you</td>
+                    <td colSpan={2} className="pt-1 text-right text-muted">Tip — thank you</td>
                     <td className="pt-1 text-right font-mono text-white">${(tipsPaid / 100).toFixed(2)}</td>
                   </tr>
                 )}
