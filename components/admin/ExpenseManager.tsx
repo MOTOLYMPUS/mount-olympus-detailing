@@ -16,6 +16,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ExpenseLogger, { JobOption } from '@/components/admin/ExpenseLogger';
+import { buttonClass } from '@/components/ui';
 import { Expense, ExpenseCategoryDef, expenseCategoryLabel } from '@/lib/models';
 import { formatMoney } from '@/lib/pricing';
 
@@ -25,11 +26,20 @@ export default function ExpenseManager({
   jobs,
   /** appointment id → reference, for the Job column. */
   jobRefs,
+  exportHref,
+  exportLabel = 'Export CSV',
 }: {
   initial: Expense[];
   categories: ExpenseCategoryDef[];
   jobs: JobOption[];
   jobRefs: Record<string, string>;
+  /**
+   * When set, the ledger is headed by this CSV export link instead of the
+   * logger — the page then renders <ExpenseLogger> itself (Expenses puts it
+   * full-width under the title).
+   */
+  exportHref?: string;
+  exportLabel?: string;
 }) {
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -47,7 +57,13 @@ export default function ExpenseManager({
 
   return (
     <div className="space-y-5">
-      <ExpenseLogger categories={categories} jobs={jobs} />
+      {exportHref ? (
+        <a href={exportHref} className={buttonClass('secondary', 'sm')}>
+          {exportLabel}
+        </a>
+      ) : (
+        <ExpenseLogger categories={categories} jobs={jobs} />
+      )}
 
       {initial.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted">No expenses recorded for this period yet.</p>

@@ -21,8 +21,9 @@ import { getSchedulingConfig } from '@/lib/repo/settings';
 import { addDaysIso, dateAtMinutes, formatDate, todayIso } from '@/lib/timezone';
 import { EXPENSE_CATEGORIES, expenseCategoryLabel } from '@/lib/models';
 import { formatMoney } from '@/lib/pricing';
-import { PageHeader, Card, StatTile, LinkButton, buttonClass } from '@/components/ui';
+import { PageHeader, Card, StatTile } from '@/components/ui';
 import ExpenseManager from '@/components/admin/ExpenseManager';
+import ExpenseLogger from '@/components/admin/ExpenseLogger';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,12 +80,9 @@ export default async function ExpensesPage({
         title="Expenses"
         description="Track what you spend to run the business, categorised for taxes. Only administrators can see this."
         action={
-          <a
-            href={`/api/expenses/export?from=${from}&to=${to}`}
-            className={buttonClass('secondary', 'sm')}
-          >
-            Export {year} CSV
-          </a>
+          <div className="w-full">
+            <ExpenseLogger categories={EXPENSE_CATEGORIES} jobs={jobs} fullWidth />
+          </div>
         }
       />
 
@@ -147,7 +145,14 @@ export default async function ExpensesPage({
         <h2 id="ledger-heading" className="eyebrow mb-4">
           {year} ledger
         </h2>
-        <ExpenseManager initial={expenses} categories={EXPENSE_CATEGORIES} jobs={jobs} jobRefs={jobRefs} />
+        <ExpenseManager
+          initial={expenses}
+          categories={EXPENSE_CATEGORIES}
+          jobs={jobs}
+          jobRefs={jobRefs}
+          exportHref={`/api/expenses/export?from=${from}&to=${to}`}
+          exportLabel={`Export ${year} CSV`}
+        />
       </section>
 
       <p className="text-[12px] leading-relaxed text-subtle">

@@ -156,16 +156,16 @@ export default async function AdminDashboardPage({
         action={
           // Four soft buttons in the order the owner works through them.
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-            <LinkButton href="/admin/schedule" variant="secondary" size="sm">
+            <LinkButton href="/admin/schedule" variant="primary" size="sm">
               Schedule
             </LinkButton>
-            <LinkButton href="/admin/expenses" variant="secondary" size="sm">
+            <LinkButton href="/admin/expenses" variant="primary" size="sm">
               Expenses
             </LinkButton>
-            <LinkButton href="/admin/finances" variant="secondary" size="sm">
+            <LinkButton href="/admin/finances" variant="primary" size="sm">
               Finances
             </LinkButton>
-            <LinkButton href="/admin/reports" variant="secondary" size="sm">
+            <LinkButton href="/admin/reports" variant="primary" size="sm">
               Reports
             </LinkButton>
           </div>

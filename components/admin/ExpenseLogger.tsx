@@ -14,6 +14,7 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import clsx from 'clsx';
 import { Alert, buttonClass } from '@/components/ui';
 import { InputField, SelectField, TextAreaField } from '@/components/Field';
 import type { ExpenseCategoryDef } from '@/lib/models';
@@ -33,6 +34,7 @@ export default function ExpenseLogger({
   jobs,
   buttonLabel = 'Log expense',
   defaultOpen = false,
+  fullWidth = false,
   onSaved,
 }: {
   categories: ExpenseCategoryDef[];
@@ -40,6 +42,8 @@ export default function ExpenseLogger({
   jobs: JobOption[];
   buttonLabel?: string;
   defaultOpen?: boolean;
+  /** Stretch the closed button (and the open form) edge to edge. */
+  fullWidth?: boolean;
   onSaved?: () => void;
 }) {
   const router = useRouter();
@@ -128,14 +132,18 @@ export default function ExpenseLogger({
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className={buttonClass('primary', 'sm')}>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={buttonClass('primary', fullWidth ? 'md' : 'sm', fullWidth ? 'w-full' : undefined)}
+      >
         + {buttonLabel}
       </button>
     );
   }
 
   return (
-    <div className="space-y-4 rounded-sm border border-white/10 bg-white/[0.02] p-4">
+    <div className={clsx('space-y-4 rounded-sm border border-white/10 bg-white/[0.02] p-4', fullWidth && 'w-full')}>
       {banner && <Alert tone="danger">{banner}</Alert>}
       {saved && <Alert tone="positive">{saved}</Alert>}
 
