@@ -6,44 +6,66 @@
 //
 // Browsers only show the permission prompt from a user gesture, so an account
 // preference alone cannot turn notifications on — the "Turn on" tap here is
-// that gesture. Shown only where it can actually work (not on iOS in a
-// browser tab, not where notifications are blocked). "Not now" hides it for
-// the session; the customer turns the preference off for good in Profile.
+// that gesture.
+//
+// WHEN IT STAYS HIDDEN (each of these was a way it nagged uselessly):
+//   • push is not supported here, blocked, or iOS outside the installed app;
+//   • the SERVER has no push keys yet — a tap could never succeed, so asking
+//     is pointless (checked via /api/push/vapid);
+//   • this device is already enrolled;
+//   • the customer tapped "Not now", or a tap failed, within the last 14 days
+//     (localStorage, so it survives the installed app being relaunched — a
+//     session-only memory meant every launch asked again).
+// The permanent off switch is the account preference in Profile.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useEffect, useState } from 'react';
 import { buttonClass } from '@/components/ui';
 import { hasPushSubscription, pushSupport, subscribePush } from '@/lib/push-client';
 
-const DISMISS_KEY = 'mod.push-nudge.dismissed';
+const SNOOZE_KEY = 'mod.push-nudge.snoozed-until';
+const SNOOZE_MS = 14 * 24 * 60 * 60 * 1000;
+
+function snoozed(): boolean {
+  try {
+    const until = Number(localStorage.getItem(SNOOZE_KEY) || 0);
+    return until > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function snooze(ms = SNOOZE_MS) {
+  try {
+    localStorage.setItem(SNOOZE_KEY, String(Date.now() + ms));
+  } catch {
+    /* storage unavailable — it will simply ask again next time */
+  }
+}
 
 export default function PushNudge({ optIn }: { optIn: boolean }) {
   const [show, setShow] = useState(false);
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    if (!optIn) return;
-    try {
-      if (sessionStorage.getItem(DISMISS_KEY)) return;
-    } catch {
-      /* storage unavailable — just show it */
-    }
-    if (pushSupport() !== 'ready') return;
+    if (!optIn || snoozed() || pushSupport() !== 'ready') return;
     let cancelled = false;
-    hasPushSubscription().then((has) => {
-      if (!cancelled && !has) setShow(true);
-    });
+    (async () => {
+      if (await hasPushSubscription()) return;
+      // Only ask when a tap can actually succeed.
+      const vapid = await fetch('/api/push/vapid')
+        .then((r) => r.json())
+        .catch(() => null);
+      if (!vapid?.ok || !vapid.configured) return;
+      if (!cancelled) setShow(true);
+    })();
     return () => {
       cancelled = true;
     };
   }, [optIn]);
 
   function dismiss() {
-    try {
-      sessionStorage.setItem(DISMISS_KEY, '1');
-    } catch {
-      /* ignore */
-    }
+    snooze();
     setShow(false);
   }
 
@@ -51,11 +73,10 @@ export default function PushNudge({ optIn }: { optIn: boolean }) {
     setPending(true);
     const result = await subscribePush();
     setPending(false);
-    // Whatever happened, do not keep asking this session: 'on' means done,
-    // 'denied' means the browser will not prompt again, anything else the
-    // customer can retry from Profile.
-    dismiss();
-    void result;
+    // 'on': enrolled, the subscription check hides this from now on. Anything
+    // else: do not ask again for a while — the customer can finish in Profile.
+    if (result !== 'on') snooze();
+    setShow(false);
   }
 
   if (!show) return null;
