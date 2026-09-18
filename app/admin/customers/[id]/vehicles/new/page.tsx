@@ -27,14 +27,14 @@ export default async function AdminAddVehiclePage({ params }: { params: Promise<
       <PageHeader
         eyebrow="Garage"
         title={`Add a vehicle for ${customer.name}`}
-        description="It appears in their garage exactly as if they had added it, and you can book it straight away."
+        description="It appears in their garage exactly as if they had added it. You land back on their profile when it is saved."
         action={
           <LinkButton href={`/admin/customers/${customer.id}`} variant="ghost" size="sm">
             ← {customer.name}
           </LinkButton>
         }
       />
-      <VehicleForm forUserId={customer.id} successHref={`/admin/customers/${customer.id}/book`} />
+      <VehicleForm forUserId={customer.id} successHref={`/admin/customers/${customer.id}`} />
     </div>
   );
 }
