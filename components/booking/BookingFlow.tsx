@@ -191,6 +191,8 @@ export default function BookingFlow({
   const [locationType, setLocationType] = useState<'mobile' | 'shop'>('mobile');
   const [address, setAddress] = useState(defaultAddress);
   const [dateIso, setDateIso] = useState('');
+  // COMPACT only: the month the Day dropdown is showing ('YYYY-MM').
+  const [monthKey, setMonthKey] = useState('');
   const [startsAt, setStartsAt] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -260,6 +262,16 @@ export default function BookingFlow({
         addons: addOnIds.join(','),
         location: locationType,
       });
+      // The compact wizard picks by month, so it asks for the API's full
+      // window (62 days) instead of the default fortnight.
+      if (compact) {
+        const to = new Date();
+        to.setDate(to.getDate() + 61);
+        params.set(
+          'to',
+          `${to.getFullYear()}-${String(to.getMonth() + 1).padStart(2, '0')}-${String(to.getDate()).padStart(2, '0')}`
+        );
+      }
       const res = await fetch(`/api/availability?${params}`);
       const data = await res.json();
       if (!data.ok) {
@@ -758,8 +770,51 @@ export default function BookingFlow({
                     tiles only fits a phone by scrolling sideways, which is
                     the scroll this layout exists to avoid. Closed days stay
                     listed (greyed) so the owner can see why a date is off. */}
-                {compact && (
-                  <div className="space-y-1.5">
+                {compact && (() => {
+                  // Month / Day / Time. Months come from the availability
+                  // window itself (the current calendar year is implied; a
+                  // month in the next year says so). The Day list is the
+                  // chosen month's days, closed ones greyed with the reason.
+                  const months: string[] = [];
+                  for (const d of days) {
+                    const k = d.dateIso.slice(0, 7);
+                    if (!months.includes(k)) months.push(k);
+                  }
+                  const activeMonth = monthKey || dateIso.slice(0, 7) || months[0] || '';
+                  const thisYear = String(new Date().getFullYear());
+                  const monthLabel = (k: string) => {
+                    const date = new Date(`${k}-15T12:00:00Z`);
+                    const name = date.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+                    return k.startsWith(thisYear) ? name : `${name} ${k.slice(0, 4)}`;
+                  };
+                  const monthDays = days.filter((d) => d.dateIso.startsWith(activeMonth));
+                  return (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <label
+                        htmlFor="booking-month"
+                        className="font-mono text-[11px] uppercase tracking-widest2 text-subtle"
+                      >
+                        Month
+                      </label>
+                      <select
+                        id="booking-month"
+                        className="input-field"
+                        value={activeMonth}
+                        onChange={(e) => {
+                          setMonthKey(e.target.value);
+                          setDateIso('');
+                          setStartsAt('');
+                        }}
+                      >
+                        {months.map((k) => (
+                          <option key={k} value={k}>
+                            {monthLabel(k)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
                     <label
                       htmlFor="booking-day"
                       className="font-mono text-[11px] uppercase tracking-widest2 text-subtle"
@@ -775,24 +830,25 @@ export default function BookingFlow({
                         setStartsAt('');
                       }}
                     >
-                      <option value="">Choose a day…</option>
-                      {days.map((d) => {
+                      <option value="">Choose…</option>
+                      {monthDays.map((d) => {
                         const date = new Date(`${d.dateIso}T12:00:00Z`);
                         const label = date.toLocaleDateString('en-US', {
                           weekday: 'short',
-                          month: 'short',
                           day: 'numeric',
                           timeZone: 'UTC',
                         });
                         return (
                           <option key={d.dateIso} value={d.dateIso} disabled={d.openCount === 0}>
-                            {label} · {d.openCount > 0 ? `${d.openCount} free` : d.closedReason ?? 'closed'}
+                            {label} · {d.openCount > 0 ? `${d.openCount} free` : 'closed'}
                           </option>
                         );
                       })}
                     </select>
+                    </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* Days */}
                 {!compact && (
