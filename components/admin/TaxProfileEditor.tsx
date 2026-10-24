@@ -220,7 +220,10 @@ export default function TaxProfileEditor({ profile }: { profile: TaxProfile }) {
               <div className="relative max-w-[9rem]">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-subtle">$</span>
                 <input
-                  className="input-field pl-7"
+                  // Inline: `.input-field` sets its own padding after the
+                  // utilities, so a `pl-*` class would lose to it.
+                  style={{ paddingLeft: '1.75rem' }}
+                  className="input-field"
                   inputMode="decimal"
                   placeholder="0.700"
                   aria-label={`Rate ${i + 1} dollars per mile`}
