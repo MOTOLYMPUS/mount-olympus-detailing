@@ -106,9 +106,14 @@ export default async function FinancesPage({
             for a return or your accountant. {formatMoney(o.deductibleCents)} of {year}{' '}
             spend is marked deductible.
           </p>
-          <LinkButton href="/admin/expenses" variant="secondary" size="sm" className="mt-4">
-            Open expense ledger
-          </LinkButton>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <LinkButton href="/admin/expenses" variant="secondary" size="sm">
+              Open expense ledger
+            </LinkButton>
+            <LinkButton href="/admin/settings/tax" variant="secondary" size="sm">
+              Tax profile
+            </LinkButton>
+          </div>
         </Card>
       </div>
     </div>

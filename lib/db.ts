@@ -624,6 +624,12 @@ function seedDefaults(db: DatabaseSync) {
     ['timezone', 'America/Chicago'],
     ['loyalty_points_per_dollar', 1],
     ['loyalty_points_per_dollar_redeemed', 100],
+    // Business tax profile (see getTaxProfile in lib/repo/settings.ts).
+    // NAICS 811190 = other automotive repair & maintenance, incl. car washes.
+    // Mileage rates are mills per mile: 700 = $0.70 (IRS Notice 2025-5).
+    ['tax_naics', '811190'],
+    ['tax_accounting_method', 'cash'],
+    ['tax_mileage_rates', { '2025': 700 }],
   ];
 
   const stmt = db.prepare(

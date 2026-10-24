@@ -82,6 +82,53 @@ export function getSchedulingConfig(): SchedulingConfig {
   };
 }
 
+// ── Business tax profile ─────────────────────────────────────────────────────
+//
+// The Schedule C header facts plus the per-year IRS mileage rate. Stored as
+// individual `tax_*` settings rows so the existing key/value table carries them
+// with no schema change. Admin-only, like expenses.
+
+export type AccountingMethod = 'cash' | 'accrual';
+
+export interface TaxProfile {
+  /** Start and end point of every business trip (home = principal place of business). */
+  baseAddress: string;
+  legalName: string;
+  /** XX-XXXXXXX, or '' when the owner files under their SSN. */
+  ein: string;
+  naicsCode: string;
+  accountingMethod: AccountingMethod;
+  /** YYYY-MM-DD, or ''. */
+  businessStartDate: string;
+  /**
+   * IRS standard mileage rate by tax year, in MILLS per mile (thousandths of a
+   * dollar): 700 = $0.700. Rates are published to a tenth of a cent (e.g.
+   * 65.5¢), which whole cents cannot hold.
+   */
+  mileageRates: Record<string, number>;
+}
+
+export const DEFAULT_NAICS = '811190';
+
+export function getTaxProfile(): TaxProfile {
+  const method = getSetting<string>('tax_accounting_method', 'cash');
+  return {
+    baseAddress: getSetting('tax_base_address', ''),
+    legalName: getSetting('tax_legal_name', ''),
+    ein: getSetting('tax_ein', ''),
+    naicsCode: getSetting('tax_naics', DEFAULT_NAICS),
+    accountingMethod: method === 'accrual' ? 'accrual' : 'cash',
+    businessStartDate: getSetting('tax_business_start_date', ''),
+    mileageRates: getSetting<Record<string, number>>('tax_mileage_rates', { '2025': 700 }),
+  };
+}
+
+/** The standard mileage rate for a tax year in mills per mile, or null if none is set. */
+export function mileageRateMills(year: number | string): number | null {
+  const rate = getTaxProfile().mileageRates[String(year)];
+  return typeof rate === 'number' && Number.isFinite(rate) ? rate : null;
+}
+
 // ── Holidays ─────────────────────────────────────────────────────────────────
 
 export function listHolidays(): Holiday[] {

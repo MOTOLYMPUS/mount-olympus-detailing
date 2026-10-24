@@ -180,6 +180,16 @@ export default function AppHeader({
                   Manage calendar
                 </Link>
               )}
+              {isAdmin(user.role) && (
+                <Link
+                  href="/admin/settings/tax"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                  className="block rounded-sm px-3 py-2 text-sm text-muted transition-colors hover:bg-white/5 hover:text-white"
+                >
+                  Tax profile
+                </Link>
+              )}
               <Link
                 href="/"
                 role="menuitem"
