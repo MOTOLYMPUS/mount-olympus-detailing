@@ -36,6 +36,7 @@ import {
 } from './repo/coupons';
 import { getSchedulingConfig, getServiceArea } from './repo/settings';
 import { getService } from '@/data/pricing';
+import { logJobTrip } from './mileage';
 import {
   sendBookingCancelled,
   sendBookingConfirmation,
@@ -437,6 +438,10 @@ export async function completeBooking(appointmentId: string, actor: User): Promi
   if (appointment.status === 'completed') return appointment;
 
   const updated = updateAppointment(appointment.id, { status: 'completed' })!;
+
+  // Mobile jobs log the drive (base → customer → base, chained with the day's
+  // other jobs). Distance is looked up after this returns; never throws.
+  logJobTrip(updated, actor);
 
   const config = getSchedulingConfig();
   void config;

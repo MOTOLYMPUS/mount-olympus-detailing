@@ -535,6 +535,83 @@ CREATE TABLE IF NOT EXISTS expenses (
 );
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses (spent_on DESC);
 CREATE INDEX IF NOT EXISTS idx_expenses_cat  ON expenses (category, spent_on DESC);
+
+-- ── Mileage (owner bookkeeping, admin-only) ─────────────────────────────────
+-- The vehicles the BUSINESS drives to jobs — not customer vehicles, which live
+-- in \`vehicles\`. Each has its own IRS deduction method (Schedule C Part IV /
+-- Form 4562): standard mileage or actual expenses.
+CREATE TABLE IF NOT EXISTS business_vehicles (
+  id                    TEXT PRIMARY KEY,
+  description           TEXT NOT NULL,              -- "2015 Ford Transit Connect"
+  ownership             TEXT NOT NULL DEFAULT 'business',  -- business | personal
+  placed_in_service_on  TEXT,                       -- YYYY-MM-DD
+  odometer_in_service   INTEGER,                    -- whole miles at placed-in-service
+  deduction_method      TEXT NOT NULL DEFAULT 'standard',  -- standard | actual
+  -- Front seats only, permanent shelving, logos: treated as 100% business
+  -- (Treas. Reg. 1.274-5(k)(7)); the preparer confirms.
+  qualified_nonpersonal INTEGER NOT NULL DEFAULT 0,
+  is_default            INTEGER NOT NULL DEFAULT 0, -- trips default to it while active
+  active_from           TEXT,                       -- YYYY-MM-DD; NULL = always
+  retired_on            TEXT,                       -- YYYY-MM-DD; NULL = still in use
+  notes                 TEXT NOT NULL DEFAULT '',
+  created_at            TEXT NOT NULL,
+  updated_at            TEXT NOT NULL
+);
+
+-- Odometer readings per tax year: total miles driven feed business-use %.
+CREATE TABLE IF NOT EXISTS business_vehicle_years (
+  vehicle_id      TEXT NOT NULL REFERENCES business_vehicles(id) ON DELETE CASCADE,
+  tax_year        INTEGER NOT NULL,
+  odometer_start  INTEGER,   -- Jan 1, or NULL to use the placed-in-service reading
+  odometer_end    INTEGER,   -- Dec 31 (or retirement)
+  PRIMARY KEY (vehicle_id, tax_year)
+);
+
+-- One row per business trip. Miles are TENTHS of a mile in an integer (1006 =
+-- 100.6 mi), so a year's total never drifts the way a float sum can. NULL
+-- miles means "not known yet" — always paired with needs_review.
+CREATE TABLE IF NOT EXISTS trips (
+  id                  TEXT PRIMARY KEY,
+  trip_date           TEXT NOT NULL,                 -- YYYY-MM-DD, business-local
+  business_vehicle_id TEXT REFERENCES business_vehicles(id) ON DELETE SET NULL,
+  start_address       TEXT NOT NULL DEFAULT '',
+  stops               TEXT NOT NULL DEFAULT '[]',    -- [{label, address}] in driving order
+  end_address         TEXT NOT NULL DEFAULT '',
+  purpose             TEXT NOT NULL DEFAULT '',
+  miles_tenths        INTEGER,
+  source              TEXT NOT NULL DEFAULT 'manual', -- route | odometer | manual | gps
+  odometer_start      INTEGER,
+  odometer_end        INTEGER,
+  odometer_start_key  TEXT,                          -- photo, lib/uploads.ts 'odometer' scope
+  odometer_end_key    TEXT,
+  needs_review        INTEGER NOT NULL DEFAULT 0,
+  review_reason       TEXT NOT NULL DEFAULT '',
+  notes               TEXT NOT NULL DEFAULT '',
+  created_by          TEXT REFERENCES users(id) ON DELETE SET NULL,
+  created_at          TEXT NOT NULL,
+  updated_at          TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_trips_date    ON trips (trip_date DESC);
+CREATE INDEX IF NOT EXISTS idx_trips_vehicle ON trips (business_vehicle_id, trip_date);
+
+-- Which jobs a trip served. An appointment belongs to at most one trip, which
+-- is what makes the completion hook idempotent.
+CREATE TABLE IF NOT EXISTS trip_appointments (
+  trip_id        TEXT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+  appointment_id TEXT NOT NULL UNIQUE REFERENCES appointments(id) ON DELETE CASCADE,
+  PRIMARY KEY (trip_id, appointment_id)
+);
+
+-- Geocoder results, so an address is looked up once (Nominatim's usage policy
+-- asks for caching) and repeat customers cost nothing.
+CREATE TABLE IF NOT EXISTS geocode_cache (
+  query      TEXT PRIMARY KEY,   -- normalised address
+  lat        REAL NOT NULL,
+  lon        REAL NOT NULL,
+  label      TEXT NOT NULL DEFAULT '',
+  provider   TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
 `;
 
 function connect(): DatabaseSync {

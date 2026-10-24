@@ -154,7 +154,7 @@ export default async function AdminDashboardPage({
         title="Business"
         description="Completed work only. Cancelled and no-show bookings are excluded from every revenue figure on this page."
         action={
-          // Four soft buttons in the order the owner works through them.
+          // Soft buttons in the order the owner works through them.
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
             <LinkButton href="/admin/schedule" variant="primary" size="sm">
               Schedule
@@ -164,6 +164,9 @@ export default async function AdminDashboardPage({
             </LinkButton>
             <LinkButton href="/admin/finances" variant="primary" size="sm">
               Finances
+            </LinkButton>
+            <LinkButton href="/admin/mileage" variant="primary" size="sm">
+              Mileage
             </LinkButton>
             <LinkButton href="/admin/reports" variant="primary" size="sm">
               Reports

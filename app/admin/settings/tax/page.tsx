@@ -32,7 +32,7 @@ export default async function TaxProfilePage() {
         eyebrow="Configuration"
         title="Tax profile"
         description="The business facts your Schedule C needs, the address every trip starts from, and the IRS mileage rate for each year."
-        action={<LinkButton href="/admin/finances">Finances</LinkButton>}
+        action={<LinkButton href="/admin/mileage">Mileage log</LinkButton>}
       />
 
       {!profile.baseAddress && (

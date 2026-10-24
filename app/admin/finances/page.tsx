@@ -110,6 +110,9 @@ export default async function FinancesPage({
             <LinkButton href="/admin/expenses" variant="secondary" size="sm">
               Open expense ledger
             </LinkButton>
+            <LinkButton href="/admin/mileage" variant="secondary" size="sm">
+              Mileage log
+            </LinkButton>
             <LinkButton href="/admin/settings/tax" variant="secondary" size="sm">
               Tax profile
             </LinkButton>

@@ -523,6 +523,72 @@ export interface Expense {
   updatedAt: string;
 }
 
+// ── Mileage ──────────────────────────────────────────────────────────────────
+
+export type VehicleOwnership = 'business' | 'personal';
+export type DeductionMethod = 'standard' | 'actual';
+
+/** A vehicle the business drives to jobs. Unrelated to a customer's `Vehicle`. */
+export interface BusinessVehicle {
+  id: string;
+  description: string;
+  ownership: VehicleOwnership;
+  placedInServiceOn: string | null;
+  odometerInService: number | null;
+  deductionMethod: DeductionMethod;
+  /** Qualified nonpersonal-use vehicle: treated as 100% business use. */
+  qualifiedNonpersonal: boolean;
+  isDefault: boolean;
+  activeFrom: string | null;
+  retiredOn: string | null;
+  notes: string;
+  /** Odometer readings by tax year. */
+  years: BusinessVehicleYear[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BusinessVehicleYear {
+  taxYear: number;
+  odometerStart: number | null;
+  odometerEnd: number | null;
+}
+
+export const TRIP_SOURCES = ['route', 'odometer', 'manual', 'gps'] as const;
+export type TripSource = (typeof TRIP_SOURCES)[number];
+
+export interface TripStop {
+  /** Who or what — "Jane Doe · MOD-ABC-123", "Home Depot". */
+  label: string;
+  address: string;
+  /** Set on stops the completion hook added for a job; absent on typed stops. */
+  appointmentId?: string;
+}
+
+export interface Trip {
+  id: string;
+  tripDate: string;
+  businessVehicleId: string | null;
+  startAddress: string;
+  stops: TripStop[];
+  endAddress: string;
+  purpose: string;
+  /** Tenths of a mile; null until known. */
+  milesTenths: number | null;
+  source: TripSource;
+  odometerStart: number | null;
+  odometerEnd: number | null;
+  odometerStartKey: string | null;
+  odometerEndKey: string | null;
+  needsReview: boolean;
+  reviewReason: string;
+  notes: string;
+  appointmentIds: string[];
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ── Messaging ────────────────────────────────────────────────────────────────
 
 export type ConversationKind = 'direct' | 'group' | 'announcement' | 'job';

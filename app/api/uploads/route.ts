@@ -8,12 +8,12 @@
 
 import { fail, ok, withAuth } from '@/lib/api';
 import { UploadError, UploadScope, store } from '@/lib/uploads';
-import { canManage } from '@/lib/rbac';
+import { canManage, isAdmin } from '@/lib/rbac';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const ALLOWED: UploadScope[] = ['jobs', 'vehicles', 'messages', 'avatars', 'reviews', 'receipts'];
+const ALLOWED: UploadScope[] = ['jobs', 'vehicles', 'messages', 'avatars', 'reviews', 'receipts', 'odometer'];
 
 export const POST = withAuth(
   'any',
@@ -35,6 +35,10 @@ export const POST = withAuth(
     }
     // Receipts are the owner's tax records: managers and above only.
     if (scope === 'receipts' && !canManage(user.role)) {
+      return fail('You do not have access to that.', 403);
+    }
+    // Odometer photos back the mileage log, which is admin-only tax data.
+    if (scope === 'odometer' && !isAdmin(user.role)) {
       return fail('You do not have access to that.', 403);
     }
 
