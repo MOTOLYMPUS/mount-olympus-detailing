@@ -17,7 +17,8 @@ import clsx from 'clsx';
 import { requireRolePage } from '@/lib/guards';
 import { listExpenses, expenseSummary } from '@/lib/repo/expenses';
 import { getAppointment, listAppointments } from '@/lib/repo/appointments';
-import { getSchedulingConfig } from '@/lib/repo/settings';
+import { getSchedulingConfig, getTaxProfile } from '@/lib/repo/settings';
+import { listBusinessVehicles } from '@/lib/repo/mileage';
 import { addDaysIso, dateAtMinutes, formatDate, todayIso } from '@/lib/timezone';
 import { EXPENSE_CATEGORIES, expenseCategoryLabel } from '@/lib/models';
 import { formatMoney } from '@/lib/pricing';
@@ -70,6 +71,16 @@ export default async function ExpensesPage({
     }
   }
 
+  // Marketing expenses can log the drive to the event on the mileage log.
+  const vehicles = listBusinessVehicles().map((v) => ({
+    id: v.id,
+    description: v.description,
+    activeFrom: v.activeFrom,
+    retiredOn: v.retiredOn,
+    isDefault: v.isDefault,
+  }));
+  const { baseAddress } = getTaxProfile();
+
   // Offer the current year plus the previous four — enough to file and amend.
   const years = Array.from({ length: 5 }, (_, i) => thisYear - i);
 
@@ -81,7 +92,13 @@ export default async function ExpensesPage({
         description="Track what you spend to run the business, categorised for taxes. Only administrators can see this."
         action={
           <div className="w-full">
-            <ExpenseLogger categories={EXPENSE_CATEGORIES} jobs={jobs} fullWidth />
+            <ExpenseLogger
+              categories={EXPENSE_CATEGORIES}
+              jobs={jobs}
+              vehicles={vehicles}
+              baseAddress={baseAddress}
+              fullWidth
+            />
           </div>
         }
       />
@@ -152,6 +169,8 @@ export default async function ExpensesPage({
           jobRefs={jobRefs}
           exportHref={`/api/expenses/export?from=${from}&to=${to}`}
           exportLabel={`Export ${year} CSV`}
+          vehicles={vehicles}
+          baseAddress={baseAddress}
         />
       </section>
 

@@ -517,10 +517,26 @@ export interface Expense {
   receiptKey: string | null;
   /** The job this spend belongs to, when it was for one. */
   appointmentId: string | null;
+  /** Event photos (marketing expenses), lib/uploads.ts 'events' keys, in order. */
+  photoKeys: string[];
+  /** The drive to the event, when one was logged with the expense. */
+  trip: ExpenseTrip | null;
   /** Who recorded it — every expense is attributable in the audit trail. */
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** The mileage-log trip an expense carries, summarised for the ledger. */
+export interface ExpenseTrip {
+  id: string;
+  from: string;
+  to: string;
+  roundTrip: boolean;
+  businessVehicleId: string | null;
+  milesTenths: number | null;
+  needsReview: boolean;
+  reviewReason: string;
 }
 
 // ── Mileage ──────────────────────────────────────────────────────────────────
@@ -584,6 +600,8 @@ export interface Trip {
   reviewReason: string;
   notes: string;
   appointmentIds: string[];
+  /** Set when this is the drive to a marketing event logged as an expense. */
+  expenseId: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

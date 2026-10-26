@@ -8,6 +8,7 @@
 import { ApiError, int, str, text } from './api';
 import { TRIP_SOURCES, TripSource, TripStop } from './models';
 import { BusinessVehicleInput, TripInput, getBusinessVehicle } from './repo/mileage';
+import type { EventMileage } from './mileage';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ODOMETER_KEY_RE = /^odometer\/[0-9a-f-]{36}\.[a-z0-9]{3,4}$/;
@@ -157,4 +158,40 @@ export function parseTripInput(b: Record<string, unknown>, existingDate?: string
       milesTenths === null ? 'Miles not entered yet.' : !businessVehicleId ? 'No vehicle chosen.' : '',
     notes: text(b.notes, 1000),
   };
+}
+
+// ── Marketing expenses: event mileage and photos ─────────────────────────────
+
+const EVENT_PHOTO_RE = /^events\/[0-9a-f-]{36}\.[a-z0-9]{3,4}$/;
+
+/**
+ * `mileage` on an expense: undefined = leave as is, null = remove, object =
+ * set. `from` falls back to the business address in the tax profile.
+ */
+export function parseEventMileage(v: unknown, baseAddress: string): EventMileage | null | undefined {
+  if (v === undefined) return undefined;
+  if (v === null || v === false) return null;
+  if (typeof v !== 'object') throw new ApiError('Mileage details are not valid.', 400);
+  const r = v as Record<string, unknown>;
+  const from = str(r.from, 200) || baseAddress;
+  const to = str(r.to, 200);
+  if (!from) throw new ApiError('Where did you drive from?', 400, { 'mileage.from': 'Enter a starting address.' });
+  if (!to) throw new ApiError('Where was the event?', 400, { 'mileage.to': 'Enter the event address.' });
+  const businessVehicleId = str(r.businessVehicleId, 60) || null;
+  if (businessVehicleId && !getBusinessVehicle(businessVehicleId)) {
+    throw new ApiError('That vehicle no longer exists.', 400, { 'mileage.businessVehicleId': 'Unknown vehicle.' });
+  }
+  return { from, to, roundTrip: r.roundTrip !== false, businessVehicleId };
+}
+
+/** `photoKeys` on an expense: undefined = leave as is; an array replaces the set. */
+export function parsePhotoKeys(v: unknown): string[] | undefined {
+  if (v === undefined) return undefined;
+  if (!Array.isArray(v)) throw new ApiError('Event photos are not valid.', 400);
+  const keys = Array.from(new Set(v.filter((k): k is string => typeof k === 'string')));
+  if (keys.length > 20) throw new ApiError('Up to 20 event photos per expense.', 400, { photoKeys: 'Too many photos.' });
+  if (keys.some((k) => !EVENT_PHOTO_RE.test(k))) {
+    throw new ApiError('A photo has not finished uploading.', 400, { photoKeys: 'Invalid photo.' });
+  }
+  return keys;
 }

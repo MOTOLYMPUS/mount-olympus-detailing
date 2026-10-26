@@ -13,6 +13,7 @@ import clsx from 'clsx';
 import { requireRolePage } from '@/lib/guards';
 import { listBusinessVehicles, listTrips } from '@/lib/repo/mileage';
 import { getSchedulingConfig, getTaxProfile } from '@/lib/repo/settings';
+import { photosForExpenses } from '@/lib/repo/expenses';
 import { formatMiles, vehicleYearSummaries } from '@/lib/mileage';
 import { formatMoney } from '@/lib/pricing';
 import { todayIso } from '@/lib/timezone';
@@ -50,6 +51,10 @@ export default async function MileagePage({
   const allVehicles = listBusinessVehicles();
   const { vehicles: summaries, unassigned } = vehicleYearSummaries(year);
   const trips = listTrips({ from: `${year}-01-01`, to: `${year}-12-31`, vehicleId: vehicleFilter || undefined });
+
+  const expensePhotos = Object.fromEntries(
+    photosForExpenses(trips.map((t) => t.expenseId).filter((id): id is string => !!id))
+  );
 
   const totalTenths = summaries.reduce((n, s) => n + s.businessMilesTenths, 0) + unassigned.milesTenths;
   const totalTrips = summaries.reduce((n, s) => n + s.trips, 0) + unassigned.trips;
@@ -198,6 +203,7 @@ export default async function MileagePage({
             isDefault: v.isDefault,
           }))}
           baseAddress={profile.baseAddress}
+          expensePhotos={expensePhotos}
           exportHref={`/api/mileage/export?${exportQuery.toString()}`}
           exportLabel={`Export ${year} CSV`}
         />

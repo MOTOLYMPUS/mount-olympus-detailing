@@ -33,7 +33,8 @@ import {
 } from '@/lib/repo/appointments';
 import { employeeStats } from '@/lib/repo/jobs';
 import { listPlans } from '@/lib/repo/loyalty';
-import { getSchedulingConfig } from '@/lib/repo/settings';
+import { getSchedulingConfig, getTaxProfile } from '@/lib/repo/settings';
+import { listBusinessVehicles } from '@/lib/repo/mileage';
 import { addDaysIso, dateAtMinutes, todayIso } from '@/lib/timezone';
 import { formatCurrency } from '@/lib/pricing';
 
@@ -138,6 +139,15 @@ export default async function AdminReportsPage({
           label: `${a.reference} · ${a.customerName} · ${formatDate(a.startsAt, timezone)}`,
         }))
     : [];
+  const vehicles = admin
+    ? listBusinessVehicles().map((v) => ({
+        id: v.id,
+        description: v.description,
+        activeFrom: v.activeFrom,
+        retiredOn: v.retiredOn,
+        isDefault: v.isDefault,
+      }))
+    : undefined;
   const downloadHref = `/api/reports?${new URLSearchParams({ type, format: 'csv', from: fromDate, to: toDate })}`;
 
   return (
@@ -152,7 +162,12 @@ export default async function AdminReportsPage({
           that includes them is pulled from. Admin-only, like the data. */}
       {admin && (
         <div className="mb-6">
-          <ExpenseLogger categories={EXPENSE_CATEGORIES} jobs={jobs} />
+          <ExpenseLogger
+            categories={EXPENSE_CATEGORIES}
+            jobs={jobs}
+            vehicles={vehicles}
+            baseAddress={admin ? getTaxProfile().baseAddress : ''}
+          />
         </div>
       )}
 

@@ -9,8 +9,11 @@
 
 import { fail, int, ok, str, withAuth } from '@/lib/api';
 import { EXPENSE_CATEGORY_IDS, ExpenseCategory } from '@/lib/models';
-import { createExpense, listExpenses } from '@/lib/repo/expenses';
+import { createExpense, getExpense, listExpenses, setExpensePhotos } from '@/lib/repo/expenses';
 import { getAppointment } from '@/lib/repo/appointments';
+import { getTaxProfile } from '@/lib/repo/settings';
+import { parseEventMileage, parsePhotoKeys } from '@/lib/validation-mileage';
+import { syncExpenseTrip } from '@/lib/mileage';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -77,6 +80,11 @@ export const POST = withAuth(
       return fail('That receipt has not been uploaded yet.', 400, { receiptKey: 'Invalid receipt.' });
     }
 
+    // Marketing events: optional drive to the event (logged as a trip) and
+    // photos of it. Validated before anything is written.
+    const mileage = parseEventMileage(b.mileage, getTaxProfile().baseAddress);
+    const photoKeys = parsePhotoKeys(b.photoKeys);
+
     const expense = createExpense({
       spentOn,
       category,
@@ -89,7 +97,10 @@ export const POST = withAuth(
       createdBy: user.id,
     });
 
-    return ok({ expense }, { status: 201 });
+    if (photoKeys?.length) setExpensePhotos(expense.id, photoKeys);
+    if (mileage) syncExpenseTrip(expense, mileage, user.id);
+
+    return ok({ expense: getExpense(expense.id) }, { status: 201 });
   },
   { limit: 'api' }
 );

@@ -584,6 +584,7 @@ CREATE TABLE IF NOT EXISTS trips (
   odometer_end        INTEGER,
   odometer_start_key  TEXT,                          -- photo, lib/uploads.ts 'odometer' scope
   odometer_end_key    TEXT,
+  expense_id          TEXT,                          -- marketing event it was driven for; see migrate()
   needs_review        INTEGER NOT NULL DEFAULT 0,
   review_reason       TEXT NOT NULL DEFAULT '',
   notes               TEXT NOT NULL DEFAULT '',
@@ -593,6 +594,17 @@ CREATE TABLE IF NOT EXISTS trips (
 );
 CREATE INDEX IF NOT EXISTS idx_trips_date    ON trips (trip_date DESC);
 CREATE INDEX IF NOT EXISTS idx_trips_vehicle ON trips (business_vehicle_id, trip_date);
+
+-- Photos of a marketing event (car show booth, flyer drop), kept with the
+-- expense as evidence of the business purpose. lib/uploads.ts 'events' scope.
+CREATE TABLE IF NOT EXISTS expense_photos (
+  id         TEXT PRIMARY KEY,
+  expense_id TEXT NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+  photo_key  TEXT NOT NULL,
+  position   INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_expense_photos ON expense_photos (expense_id, position);
 
 -- Which jobs a trip served. An appointment belongs to at most one trip, which
 -- is what makes the completion hook idempotent.
@@ -666,6 +678,12 @@ function migrate(db: DatabaseSync) {
     db.exec(`ALTER TABLE vehicles ADD COLUMN archived_at TEXT`);
     db.exec(`UPDATE vehicles SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL`);
   }
+
+  // A trip can be the drive to a marketing event logged as an expense.
+  if (!has('trips', 'expense_id')) {
+    db.exec(`ALTER TABLE trips ADD COLUMN expense_id TEXT`);
+  }
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_trips_expense ON trips (expense_id)`);
 }
 
 /**

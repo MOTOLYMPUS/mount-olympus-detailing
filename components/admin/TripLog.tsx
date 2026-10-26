@@ -26,12 +26,15 @@ export default function TripLog({
   trips,
   vehicles,
   baseAddress,
+  expensePhotos = {},
   exportHref,
   exportLabel,
 }: {
   trips: Trip[];
   vehicles: VehicleOption[];
   baseAddress: string;
+  /** Event photos by expense id, for trips logged with a marketing expense. */
+  expensePhotos?: Record<string, string[]>;
   exportHref: string;
   exportLabel: string;
 }) {
@@ -101,7 +104,13 @@ export default function TripLog({
                   </div>
                   {(t.startAddress || t.stops.length > 0 || t.endAddress) && (
                     <p className="mt-1 text-[12px] leading-snug text-subtle">
-                      {[t.startAddress, ...t.stops.map((s) => s.label || s.address), t.endAddress].filter(Boolean).join(' → ')}
+                      {[
+                        t.startAddress,
+                        ...t.stops.map((s) => s.label || s.address),
+                        t.endAddress === t.stops[t.stops.length - 1]?.address ? '' : t.endAddress,
+                      ]
+                        .filter(Boolean)
+                        .join(' → ')}
                     </p>
                   )}
                   <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -110,6 +119,11 @@ export default function TripLog({
                       {t.businessVehicleId ? (vehicleName.get(t.businessVehicleId) ?? 'Vehicle') : 'No vehicle'}
                     </Badge>
                     {t.needsReview && <Badge tone="warning">Needs review</Badge>}
+                    {t.expenseId && (
+                      <a href="/admin/expenses" className="text-[11px] text-sky-400 underline">
+                        marketing expense
+                      </a>
+                    )}
                     {t.odometerStartKey && (
                       <a href={`/api/files/${t.odometerStartKey}`} target="_blank" rel="noreferrer" className="text-[11px] text-sky-400 underline">
                         start photo
@@ -122,6 +136,21 @@ export default function TripLog({
                     )}
                   </div>
                   {t.needsReview && t.reviewReason && <p className="mt-1.5 text-[12px] text-amber-300">{t.reviewReason}</p>}
+                  {t.expenseId && (expensePhotos[t.expenseId]?.length ?? 0) > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {expensePhotos[t.expenseId].map((key) => (
+                        <a key={key} href={`/api/files/${key}`} target="_blank" rel="noreferrer">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={`/api/files/${key}`}
+                            alt="Event photo"
+                            loading="lazy"
+                            className="h-12 w-12 rounded-sm border border-white/10 object-cover"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="flex shrink-0 items-center justify-between gap-2 sm:flex-col sm:items-end">
                   <span className="font-display text-lg font-bold text-white">

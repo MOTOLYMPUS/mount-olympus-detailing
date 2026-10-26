@@ -15,7 +15,7 @@
 // An organiser for the owner's tax preparer, not tax advice.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { Appointment, BusinessVehicle, Trip, TripStop, User } from './models';
+import { Appointment, BusinessVehicle, Expense, Trip, TripStop, User } from './models';
 import { routeMiles } from './geo';
 import { getService } from '@/data/pricing';
 import { getUser } from './repo/users';
@@ -24,6 +24,7 @@ import { getSchedulingConfig, getTaxProfile, mileageRateMills } from './repo/set
 import {
   createTrip,
   defaultVehicleFor,
+  deleteTrip,
   getTrip,
   jobLoopFor,
   linkAppointment,
@@ -31,6 +32,7 @@ import {
   milesByVehicle,
   setTripMiles,
   tripForAppointment,
+  tripForExpense,
   updateTrip,
 } from './repo/mileage';
 import { toLocalParts } from './timezone';
@@ -154,7 +156,12 @@ export async function recalculateTrip(id: string): Promise<Trip | null> {
   const before = getTrip(id);
   if (!before) return null;
 
-  const result = await routeMiles([before.startAddress, ...before.stops.map((s) => s.address), before.endAddress]);
+  // A one-way trip ends at its last stop; drop the repeated point rather than
+  // ask the router for a zero-length leg.
+  const points = [before.startAddress, ...before.stops.map((s) => s.address), before.endAddress].filter(
+    (a, i, all) => i === 0 || a !== all[i - 1]
+  );
+  const result = await routeMiles(points);
 
   const now = getTrip(id);
   if (!now || routeKey(now) !== routeKey(before)) return now;
@@ -166,6 +173,68 @@ export async function recalculateTrip(id: string): Promise<Trip | null> {
     setTripMiles(id, null, result.reason);
   }
   return getTrip(id);
+}
+
+// ── Marketing-event trips ────────────────────────────────────────────────────
+
+/** What the expense form sends for "Add mileage for this event". */
+export interface EventMileage {
+  from: string;
+  to: string;
+  roundTrip: boolean;
+  businessVehicleId: string | null;
+}
+
+function eventPurpose(e: Expense): string {
+  const what = [e.vendor, e.note].filter(Boolean).join(' — ');
+  return `Marketing event${what ? `: ${what}` : ''}`;
+}
+
+/**
+ * Keep the trip logged with a marketing expense in step with it.
+ *   mileage undefined  the expense was edited without touching mileage: carry
+ *                      its date and description onto the trip, nothing else
+ *   mileage null       mileage was removed: delete the trip
+ *   mileage given      create or replace the trip (from → event, and back when
+ *                      round trip) and look the distance up after the response.
+ *                      A failed lookup leaves miles blank and flags the trip.
+ */
+export function syncExpenseTrip(
+  expense: Expense,
+  mileage: EventMileage | null | undefined,
+  actorId: string
+): Trip | null {
+  const current = tripForExpense(expense.id);
+
+  if (mileage === undefined) {
+    if (!current) return null;
+    return updateTrip(current.id, { ...current, tripDate: expense.spentOn, purpose: eventPurpose(expense) });
+  }
+  if (mileage === null) {
+    if (current) deleteTrip(current.id);
+    return null;
+  }
+
+  const input = {
+    tripDate: expense.spentOn,
+    businessVehicleId: mileage.businessVehicleId ?? defaultVehicleFor(expense.spentOn)?.id ?? null,
+    startAddress: mileage.from,
+    stops: [{ label: expense.vendor || 'Event', address: mileage.to }],
+    endAddress: mileage.roundTrip ? mileage.from : mileage.to,
+    purpose: eventPurpose(expense),
+    milesTenths: null,
+    source: 'route' as const,
+    odometerStart: null,
+    odometerEnd: null,
+    odometerStartKey: null,
+    odometerEndKey: null,
+    needsReview: true,
+    reviewReason: CALCULATING,
+    notes: current?.notes ?? '',
+  };
+  const trip = current ? updateTrip(current.id, input)! : createTrip(input, actorId, [], expense.id);
+  recalculateTrip(trip.id).catch((e) => console.error('[mileage] recalculation failed', e));
+  return trip;
 }
 
 // ── Year summaries ───────────────────────────────────────────────────────────

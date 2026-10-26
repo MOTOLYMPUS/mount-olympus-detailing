@@ -200,6 +200,7 @@ function toTrip(row: Row): Trip {
     reviewReason: row.review_reason ?? '',
     notes: row.notes ?? '',
     appointmentIds: appointmentIdsFor(row.id),
+    expenseId: row.expense_id ?? null,
     createdBy: row.created_by ?? '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -229,7 +230,12 @@ export function getTrip(id: string): Trip | null {
   return row ? toTrip(row) : null;
 }
 
-export function createTrip(input: TripInput, createdBy: string | null, appointmentIds: string[] = []): Trip {
+export function createTrip(
+  input: TripInput,
+  createdBy: string | null,
+  appointmentIds: string[] = [],
+  expenseId: string | null = null
+): Trip {
   const id = crypto.randomUUID();
   const now = nowIso();
   const db = getDb();
@@ -238,8 +244,9 @@ export function createTrip(input: TripInput, createdBy: string | null, appointme
     db.prepare(
       `INSERT INTO trips (id, trip_date, business_vehicle_id, start_address, stops, end_address, purpose,
                           miles_tenths, source, odometer_start, odometer_end, odometer_start_key,
-                          odometer_end_key, needs_review, review_reason, notes, created_by, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                          odometer_end_key, expense_id, needs_review, review_reason, notes, created_by,
+                          created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       id,
       input.tripDate,
@@ -254,6 +261,7 @@ export function createTrip(input: TripInput, createdBy: string | null, appointme
       input.odometerEnd,
       input.odometerStartKey,
       input.odometerEndKey,
+      expenseId,
       flag(input.needsReview),
       input.reviewReason,
       input.notes,
@@ -326,6 +334,11 @@ export function tripForAppointment(appointmentId: string): Trip | null {
       `SELECT t.* FROM trips t JOIN trip_appointments ta ON ta.trip_id = t.id WHERE ta.appointment_id = ?`
     )
     .get(appointmentId) as Row | undefined;
+  return row ? toTrip(row) : null;
+}
+
+export function tripForExpense(expenseId: string): Trip | null {
+  const row = getDb().prepare(`SELECT * FROM trips WHERE expense_id = ?`).get(expenseId) as Row | undefined;
   return row ? toTrip(row) : null;
 }
 

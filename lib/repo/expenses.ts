@@ -10,10 +10,55 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import crypto from 'node:crypto';
-import { Row, getDb, nowIso } from '../db';
-import { Expense, ExpenseCategory } from '../models';
+import { Row, bool, getDb, json, nowIso } from '../db';
+import { Expense, ExpenseCategory, ExpenseTrip } from '../models';
 
-function toExpense(row: Row): Expense {
+type Extras = { photos: Map<string, string[]>; trips: Map<string, ExpenseTrip> };
+
+/**
+ * Event photos and the linked trip for a batch of expenses, in two queries
+ * however long the list (ids go in as one JSON array, not N placeholders).
+ */
+function extrasFor(ids: string[]): Extras {
+  const photos = new Map<string, string[]>();
+  const trips = new Map<string, ExpenseTrip>();
+  if (!ids.length) return { photos, trips };
+  const list = JSON.stringify(ids);
+  const db = getDb();
+
+  for (const r of db
+    .prepare(
+      `SELECT expense_id, photo_key FROM expense_photos
+        WHERE expense_id IN (SELECT value FROM json_each(?)) ORDER BY position, created_at`
+    )
+    .all(list) as Row[]) {
+    photos.set(r.expense_id, [...(photos.get(r.expense_id) ?? []), r.photo_key]);
+  }
+
+  for (const r of db
+    .prepare(`SELECT * FROM trips WHERE expense_id IN (SELECT value FROM json_each(?))`)
+    .all(list) as Row[]) {
+    const stops = json<{ address: string }[]>(r.stops, []);
+    trips.set(r.expense_id, {
+      id: r.id,
+      from: r.start_address ?? '',
+      to: stops[0]?.address ?? r.end_address ?? '',
+      roundTrip: !!r.start_address && r.end_address === r.start_address,
+      businessVehicleId: r.business_vehicle_id ?? null,
+      milesTenths: r.miles_tenths ?? null,
+      needsReview: bool(r.needs_review),
+      reviewReason: r.review_reason ?? '',
+    });
+  }
+  return { photos, trips };
+}
+
+function withExtras(rows: Row[]): Expense[] {
+  const extras = extrasFor(rows.map((r) => r.id));
+  return rows.map((r) => toExpense(r, extras));
+}
+
+function toExpense(row: Row, extras: Extras): Expense {
   return {
     id: row.id,
     spentOn: row.spent_on,
@@ -24,6 +69,8 @@ function toExpense(row: Row): Expense {
     deductible: !!row.deductible,
     receiptKey: row.receipt_key ?? null,
     appointmentId: row.appointment_id ?? null,
+    photoKeys: extras.photos.get(row.id) ?? [],
+    trip: extras.trips.get(row.id) ?? null,
     createdBy: row.created_by ?? '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -68,7 +115,7 @@ export function createExpense(input: {
 
 export function getExpense(id: string): Expense | null {
   const row = getDb().prepare(`SELECT * FROM expenses WHERE id = ?`).get(id) as Row | undefined;
-  return row ? toExpense(row) : null;
+  return row ? withExtras([row])[0] : null;
 }
 
 export function updateExpense(
@@ -119,9 +166,41 @@ export function updateExpense(
   return getExpense(id);
 }
 
+/** Removes the expense, its event photos (FK cascade) and the trip logged with it. */
 export function deleteExpense(id: string): boolean {
-  const info = getDb().prepare(`DELETE FROM expenses WHERE id = ?`).run(id);
-  return Number(info.changes) > 0;
+  const db = getDb();
+  db.exec('BEGIN');
+  try {
+    db.prepare(`DELETE FROM trips WHERE expense_id = ?`).run(id);
+    const info = db.prepare(`DELETE FROM expenses WHERE id = ?`).run(id);
+    db.exec('COMMIT');
+    return Number(info.changes) > 0;
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+/** Replace an expense's event photos with `keys`, in that order. */
+export function setExpensePhotos(expenseId: string, keys: string[]): void {
+  const db = getDb();
+  db.exec('BEGIN');
+  try {
+    db.prepare(`DELETE FROM expense_photos WHERE expense_id = ?`).run(expenseId);
+    const stmt = db.prepare(
+      `INSERT INTO expense_photos (id, expense_id, photo_key, position, created_at) VALUES (?, ?, ?, ?, ?)`
+    );
+    keys.forEach((key, i) => stmt.run(crypto.randomUUID(), expenseId, key, i, nowIso()));
+    db.exec('COMMIT');
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+/** Event photos for many expenses at once — the mileage log shows them on linked trips. */
+export function photosForExpenses(ids: string[]): Map<string, string[]> {
+  return extrasFor(ids).photos;
 }
 
 export interface ExpenseQuery {
@@ -155,7 +234,7 @@ export function listExpenses(q: ExpenseQuery = {}): Expense[] {
        ORDER BY spent_on DESC, created_at DESC LIMIT ?`
     )
     .all(...(values as any[])) as Row[];
-  return rows.map(toExpense);
+  return withExtras(rows);
 }
 
 export interface ExpenseSummary {

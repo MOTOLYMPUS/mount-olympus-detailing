@@ -10,6 +10,10 @@
 //
 // Amounts are typed in DOLLARS and converted to integer cents once, here, at
 // the boundary — everything downstream (totals, tax export) stays integer.
+//
+// Advertising & marketing (car shows, events) also offers the drive to the
+// event — saved as a trip on the mileage log — and event photos, when the page
+// passes `vehicles` (admin pages only).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import { useRef, useState } from 'react';
@@ -18,6 +22,10 @@ import clsx from 'clsx';
 import { Alert, buttonClass } from '@/components/ui';
 import { InputField, SelectField, TextAreaField } from '@/components/Field';
 import type { ExpenseCategoryDef } from '@/lib/models';
+import EventExtras, { EventExtrasValue, emptyEventExtras, eventExtrasBody } from './EventExtras';
+import type { VehicleOption } from './TripEditor';
+
+const MARKETING = 'advertising';
 
 export interface JobOption {
   id: string;
@@ -36,6 +44,8 @@ export default function ExpenseLogger({
   defaultOpen = false,
   fullWidth = false,
   onSaved,
+  vehicles,
+  baseAddress = '',
 }: {
   categories: ExpenseCategoryDef[];
   /** Recent bookings the spend can be tied to, newest first. */
@@ -45,6 +55,10 @@ export default function ExpenseLogger({
   /** Stretch the closed button (and the open form) edge to edge. */
   fullWidth?: boolean;
   onSaved?: () => void;
+  /** Business vehicles; enables event mileage + photos on marketing expenses. */
+  vehicles?: VehicleOption[];
+  /** Tax-profile business address — the default "From" for event mileage. */
+  baseAddress?: string;
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -64,6 +78,9 @@ export default function ExpenseLogger({
   const [note, setNote] = useState('');
   const [deductible, setDeductible] = useState(true);
   const [receipt, setReceipt] = useState<{ key: string; url: string } | null>(null);
+  const [extras, setExtras] = useState<EventExtrasValue>(() => emptyEventExtras(baseAddress));
+  const [extrasBusy, setExtrasBusy] = useState(false);
+  const showExtras = category === MARKETING && !!vehicles;
 
   async function onPickReceipt(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -104,6 +121,7 @@ export default function ExpenseLogger({
           deductible,
           appointmentId: jobId || null,
           receiptKey: receipt?.key ?? null,
+          ...(showExtras ? eventExtrasBody(extras) : {}),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -118,6 +136,7 @@ export default function ExpenseLogger({
       setNote('');
       setJobId('');
       setReceipt(null);
+      setExtras(emptyEventExtras(baseAddress));
       setSaved(`Saved $${(data.expense.amountCents / 100).toFixed(2)} — ${categories.find((c) => c.id === data.expense.category)?.label ?? ''}.`);
       router.refresh();
       onSaved?.();
@@ -128,7 +147,14 @@ export default function ExpenseLogger({
     }
   }
 
-  const canSubmit = spentOn && category && Number(amount) > 0 && !pending && !uploading;
+  const canSubmit =
+    spentOn &&
+    category &&
+    Number(amount) > 0 &&
+    !pending &&
+    !uploading &&
+    !extrasBusy &&
+    !(showExtras && extras.mileageOn && !extras.to.trim());
 
   if (!open) {
     return (
@@ -226,6 +252,18 @@ export default function ExpenseLogger({
         )}
         {errors.receiptKey && <p className="mt-1 text-[12px] text-flare">{errors.receiptKey}</p>}
       </div>
+
+      {showExtras && (
+        <EventExtras
+          value={extras}
+          onChange={setExtras}
+          vehicles={vehicles!}
+          date={spentOn}
+          errors={errors}
+          onBusy={setExtrasBusy}
+          onError={setBanner}
+        />
+      )}
 
       <TextAreaField
         label="Comment"

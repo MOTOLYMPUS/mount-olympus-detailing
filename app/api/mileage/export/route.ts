@@ -34,7 +34,9 @@ const miles = (tenths: number | null) => (tenths === null ? '' : (tenths / 10).t
 function destination(t: Trip): string {
   const stops = t.stops.map((s) => (s.label && s.address ? `${s.label} - ${s.address}` : s.label || s.address));
   // A one-way trip that ends somewhere other than where it started: show the end.
-  if (t.endAddress && t.endAddress !== t.startAddress) stops.push(t.endAddress);
+  if (t.endAddress && t.endAddress !== t.startAddress && t.endAddress !== t.stops[t.stops.length - 1]?.address) {
+    stops.push(t.endAddress);
+  }
   return stops.join(' -> ');
 }
 
