@@ -46,6 +46,7 @@ function extrasFor(ids: string[]): Extras {
       roundTrip: !!r.start_address && r.end_address === r.start_address,
       businessVehicleId: r.business_vehicle_id ?? null,
       milesTenths: r.miles_tenths ?? null,
+      manualMiles: r.source !== 'route',
       needsReview: bool(r.needs_review),
       reviewReason: r.review_reason ?? '',
     });

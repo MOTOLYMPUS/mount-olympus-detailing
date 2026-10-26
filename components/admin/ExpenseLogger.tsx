@@ -180,8 +180,15 @@ export default function ExpenseLogger({
         onChange={setCategory}
         required
         error={errors.category}
-        options={categories.map((c) => ({ value: c.id, label: c.label }))}
-        hint={categories.find((c) => c.id === category)?.scheduleC}
+        options={categories.map((c) => ({
+          value: c.id,
+          label: c.id === MARKETING && vehicles ? `${c.label} — events, car shows (+ mileage & photos)` : c.label,
+        }))}
+        hint={
+          showExtras
+            ? `${categories.find((c) => c.id === category)?.scheduleC} · add event mileage and photos below`
+            : categories.find((c) => c.id === category)?.scheduleC
+        }
       />
 
       <div className="grid gap-3 sm:grid-cols-2">

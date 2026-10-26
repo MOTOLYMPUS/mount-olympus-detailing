@@ -183,6 +183,8 @@ export interface EventMileage {
   to: string;
   roundTrip: boolean;
   businessVehicleId: string | null;
+  /** Miles typed by the owner (tenths, for the whole trip); null = look them up. */
+  milesTenths: number | null;
 }
 
 function eventPurpose(e: Expense): string {
@@ -215,25 +217,28 @@ export function syncExpenseTrip(
     return null;
   }
 
+  const businessVehicleId = mileage.businessVehicleId ?? defaultVehicleFor(expense.spentOn)?.id ?? null;
+  const typed = mileage.milesTenths !== null;
   const input = {
     tripDate: expense.spentOn,
-    businessVehicleId: mileage.businessVehicleId ?? defaultVehicleFor(expense.spentOn)?.id ?? null,
+    businessVehicleId,
     startAddress: mileage.from,
     stops: [{ label: expense.vendor || 'Event', address: mileage.to }],
     endAddress: mileage.roundTrip ? mileage.from : mileage.to,
     purpose: eventPurpose(expense),
-    milesTenths: null,
-    source: 'route' as const,
+    // Typed miles are the owner's figure and are kept as given.
+    milesTenths: mileage.milesTenths,
+    source: typed ? ('manual' as const) : ('route' as const),
     odometerStart: null,
     odometerEnd: null,
     odometerStartKey: null,
     odometerEndKey: null,
-    needsReview: true,
-    reviewReason: CALCULATING,
+    needsReview: !typed || !businessVehicleId,
+    reviewReason: !typed ? CALCULATING : businessVehicleId ? '' : 'No vehicle chosen.',
     notes: current?.notes ?? '',
   };
   const trip = current ? updateTrip(current.id, input)! : createTrip(input, actorId, [], expense.id);
-  recalculateTrip(trip.id).catch((e) => console.error('[mileage] recalculation failed', e));
+  if (!typed) recalculateTrip(trip.id).catch((e) => console.error('[mileage] recalculation failed', e));
   return trip;
 }
 

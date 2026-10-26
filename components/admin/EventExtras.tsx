@@ -5,13 +5,18 @@
 //
 // Controlled — the expense form (new) and the ledger's "Event" panel (edit)
 // own the state and send it with the expense:
-//   mileage    { from, to, roundTrip, businessVehicleId } or null
+//   mileage    { from, to, roundTrip, businessVehicleId, miles } or null
 //   photoKeys  'events' upload keys, in order
-// The server turns mileage into a trip on the mileage log (distance looked up
-// from OpenStreetMap; flagged for manual entry if an address can't be found).
+//
+// MILES. As soon as From and To are filled in, the form asks
+// /api/mileage/estimate (debounced) and shows the driving distance one way and
+// round trip. The owner can type their own figure instead; left blank, the
+// server looks the distance up again on save, and if an address can't be found
+// the trip is saved without miles and flagged — never guessed.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { buttonClass } from '@/components/ui';
 import { InputField, SelectField } from '@/components/Field';
 import { VehicleOption, vehicleForDate } from './TripEditor';
@@ -22,22 +27,38 @@ export interface EventExtrasValue {
   to: string;
   roundTrip: boolean;
   vehicleId: string;
+  /** Typed miles for the whole trip; '' = use the looked-up distance. */
+  miles: string;
   photoKeys: string[];
 }
 
 export function emptyEventExtras(baseAddress: string): EventExtrasValue {
-  return { mileageOn: false, from: baseAddress, to: '', roundTrip: true, vehicleId: '', photoKeys: [] };
+  return { mileageOn: false, from: baseAddress, to: '', roundTrip: true, vehicleId: '', miles: '', photoKeys: [] };
 }
 
 /** The request fields for these extras. */
 export function eventExtrasBody(v: EventExtrasValue) {
   return {
     mileage: v.mileageOn
-      ? { from: v.from, to: v.to, roundTrip: v.roundTrip, businessVehicleId: v.vehicleId || null }
+      ? {
+          from: v.from,
+          to: v.to,
+          roundTrip: v.roundTrip,
+          businessVehicleId: v.vehicleId || null,
+          miles: v.miles.trim() || null,
+        }
       : null,
     photoKeys: v.photoKeys,
   };
 }
+
+type Estimate =
+  | { state: 'idle' }
+  | { state: 'loading' }
+  | { state: 'done'; oneWayTenths: number; roundTripTenths: number; key: string }
+  | { state: 'failed'; reason: string };
+
+const mi = (tenths: number) => (tenths / 10).toFixed(1);
 
 export default function EventExtras({
   value,
@@ -59,7 +80,47 @@ export default function EventExtras({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(0);
+  const [estimate, setEstimate] = useState<Estimate>({ state: 'idle' });
   const set = (patch: Partial<EventExtrasValue>) => onChange({ ...value, ...patch });
+
+  // Live distance preview: 900 ms after the addresses stop changing.
+  const from = value.from.trim();
+  const to = value.to.trim();
+  const routeKey = `${from}|${to}`;
+  useEffect(() => {
+    if (!value.mileageOn || !from || to.length < 5) {
+      setEstimate({ state: 'idle' });
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setEstimate({ state: 'loading' });
+      try {
+        const res = await fetch('/api/mileage/estimate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from, to }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        if (res.ok && data.estimate) {
+          setEstimate({ state: 'done', key: routeKey, ...data.estimate });
+        } else {
+          setEstimate({ state: 'failed', reason: data.reason ?? data.error ?? 'Could not look up the distance.' });
+        }
+      } catch {
+        if (!cancelled) setEstimate({ state: 'failed', reason: 'Could not reach the server to look up the distance.' });
+      }
+    }, 900);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey, value.mileageOn]);
+
+  const tripTenths =
+    estimate.state === 'done' ? (value.roundTrip ? estimate.roundTripTenths : estimate.oneWayTenths) : null;
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []).slice(0, 10);
@@ -129,18 +190,61 @@ export default function EventExtras({
             />
             Round trip — drove back to the starting point
           </label>
-          <SelectField
-            label="Vehicle"
-            value={value.vehicleId}
-            onChange={(v) => set({ vehicleId: v })}
-            placeholder={vehicles.length ? 'Choose a vehicle' : 'No vehicles yet — add one on the Mileage page'}
-            options={vehicles.map((v) => ({ value: v.id, label: v.description }))}
-            error={errors['mileage.businessVehicleId']}
+
+          {/* Live distance */}
+          <div className="rounded-sm bg-white/[0.03] px-3 py-2.5 text-[13px]" aria-live="polite">
+            {estimate.state === 'idle' && (
+              <span className="text-subtle">Enter both addresses and the driving miles appear here.</span>
+            )}
+            {estimate.state === 'loading' && <span className="text-muted">Calculating driving distance…</span>}
+            {estimate.state === 'done' && (
+              <span className="text-white">
+                <span className={value.roundTrip ? 'text-muted' : 'font-semibold'}>{mi(estimate.oneWayTenths)} mi one way</span>
+                {' · '}
+                <span className={value.roundTrip ? 'font-semibold' : 'text-muted'}>
+                  {mi(estimate.roundTripTenths)} mi round trip
+                </span>
+              </span>
+            )}
+            {estimate.state === 'failed' && (
+              <span className="text-amber-300">
+                {estimate.reason} You can still save; the trip will be flagged until miles are entered.
+              </span>
+            )}
+          </div>
+
+          <InputField
+            label="Miles for this trip (optional)"
+            value={value.miles}
+            onChange={(v) => set({ miles: v.replace(/[^0-9.]/g, '') })}
+            inputMode="decimal"
+            placeholder={tripTenths !== null ? mi(tripTenths) : '0.0'}
+            error={errors['mileage.miles']}
+            hint={
+              value.miles.trim()
+                ? 'Your figure is saved as typed.'
+                : 'Leave blank to use the calculated distance, or type your own (e.g. from the odometer).'
+            }
           />
-          <p className="text-[12px] leading-snug text-subtle">
-            Saved to the mileage log with the driving distance from OpenStreetMap. If an address can&rsquo;t be
-            found, the trip is saved without miles and flagged for you to fill in.
-          </p>
+
+          {vehicles.length > 0 ? (
+            <SelectField
+              label="Vehicle"
+              value={value.vehicleId}
+              onChange={(v) => set({ vehicleId: v })}
+              placeholder="Choose a vehicle"
+              options={vehicles.map((v) => ({ value: v.id, label: v.description }))}
+              error={errors['mileage.businessVehicleId']}
+            />
+          ) : (
+            <p className="rounded-sm border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[12px] leading-snug text-amber-100">
+              No business vehicle yet. The trip still saves, flagged until you pick one.{' '}
+              <Link href="/admin/mileage" className="underline">
+                Add your vehicle on the Mileage page
+              </Link>
+              .
+            </p>
+          )}
         </div>
       )}
 

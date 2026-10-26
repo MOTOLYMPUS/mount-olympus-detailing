@@ -33,8 +33,8 @@ export interface GeoPoint {
 export interface GeoProvider {
   name: string;
   geocode(address: string): Promise<GeoPoint | null>;
-  /** Driving distance in miles through the points in order, or null. */
-  drivingMiles(points: GeoPoint[]): Promise<number | null>;
+  /** Driving miles for each leg between consecutive points, or null. */
+  drivingLegs(points: GeoPoint[]): Promise<number[] | null>;
 }
 
 const METERS_PER_MILE = 1609.344;
@@ -89,16 +89,18 @@ const osm: GeoProvider = {
     return { lat, lon, label: hit.display_name ?? '' };
   },
 
-  async drivingMiles(points) {
+  async drivingLegs(points) {
     if (points.length < 2) return null;
     const base = process.env.OSRM_URL || 'https://router.project-osrm.org';
     const coords = points.map((p) => `${p.lon.toFixed(6)},${p.lat.toFixed(6)}`).join(';');
     const data = (await getJson(`${base}/route/v1/driving/${coords}?overview=false`)) as {
       code?: string;
-      routes?: { distance: number }[];
+      routes?: { legs?: { distance: number }[] }[];
     };
-    const meters = data.code === 'Ok' ? data.routes?.[0]?.distance : undefined;
-    return typeof meters === 'number' && Number.isFinite(meters) ? meters / METERS_PER_MILE : null;
+    const legs = data.code === 'Ok' ? data.routes?.[0]?.legs : undefined;
+    if (!legs || legs.length !== points.length - 1) return null;
+    const miles = legs.map((l) => l.distance / METERS_PER_MILE);
+    return miles.every(Number.isFinite) ? miles : null;
   },
 };
 
@@ -134,12 +136,24 @@ export type RouteResult =
   | { ok: true; milesTenths: number }
   | { ok: false; reason: string };
 
+export type LegsResult =
+  | { ok: true; legsTenths: number[] }
+  | { ok: false; reason: string };
+
 /**
  * Driving miles through `addresses` in order (base → job1 → job2 → base),
  * rounded to a tenth. Never throws: a network or lookup failure comes back as
  * a reason the owner can read on the trip.
  */
 export async function routeMiles(addresses: string[]): Promise<RouteResult> {
+  const legs = await routeLegs(addresses);
+  if (!legs.ok) return legs;
+  // The sum of per-leg tenths; at most a tenth or two off the routed total.
+  return { ok: true, milesTenths: legs.legsTenths.reduce((n, t) => n + t, 0) };
+}
+
+/** Driving miles for each leg of a route, in tenths. Never throws (see routeMiles). */
+export async function routeLegs(addresses: string[]): Promise<LegsResult> {
   const provider = geoProvider();
   if (!provider) return { ok: false, reason: 'Distance lookup is switched off — enter the miles.' };
   if (addresses.length < 2 || addresses.some((a) => !a.trim())) {
@@ -153,9 +167,9 @@ export async function routeMiles(addresses: string[]): Promise<RouteResult> {
       if (!point) return { ok: false, reason: `Could not find "${address}" on the map — enter the miles.` };
       points.push(point);
     }
-    const miles = await provider.drivingMiles(points);
-    if (miles === null) return { ok: false, reason: 'No driving route was found — enter the miles.' };
-    return { ok: true, milesTenths: Math.round(miles * 10) };
+    const legs = await provider.drivingLegs(points);
+    if (legs === null) return { ok: false, reason: 'No driving route was found — enter the miles.' };
+    return { ok: true, legsTenths: legs.map((m) => Math.round(m * 10)) };
   } catch (e) {
     console.error('[geo] route lookup failed', e);
     return { ok: false, reason: 'The map service did not answer — try Recalculate, or enter the miles.' };

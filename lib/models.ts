@@ -535,6 +535,8 @@ export interface ExpenseTrip {
   roundTrip: boolean;
   businessVehicleId: string | null;
   milesTenths: number | null;
+  /** Miles were typed by the owner rather than looked up. */
+  manualMiles: boolean;
   needsReview: boolean;
   reviewReason: string;
 }

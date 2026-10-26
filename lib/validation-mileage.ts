@@ -181,7 +181,18 @@ export function parseEventMileage(v: unknown, baseAddress: string): EventMileage
   if (businessVehicleId && !getBusinessVehicle(businessVehicleId)) {
     throw new ApiError('That vehicle no longer exists.', 400, { 'mileage.businessVehicleId': 'Unknown vehicle.' });
   }
-  return { from, to, roundTrip: r.roundTrip !== false, businessVehicleId };
+  let milesTenths: number | null = null;
+  if (r.miles !== undefined && r.miles !== null && r.miles !== '') {
+    const miles = Number(r.miles);
+    if (!Number.isFinite(miles) || miles <= 0) {
+      throw new ApiError('Enter the miles as a number, or leave it blank.', 400, { 'mileage.miles': 'Not a number.' });
+    }
+    milesTenths = Math.round(miles * 10);
+    if (milesTenths > MAX_TRIP_TENTHS) {
+      throw new ApiError('That is more than 2,000 miles for one trip — check the figure.', 400, { 'mileage.miles': 'Too large.' });
+    }
+  }
+  return { from, to, roundTrip: r.roundTrip !== false, businessVehicleId, milesTenths };
 }
 
 /** `photoKeys` on an expense: undefined = leave as is; an array replaces the set. */

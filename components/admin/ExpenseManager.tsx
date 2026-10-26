@@ -30,6 +30,7 @@ function extrasFrom(e: Expense, baseAddress: string): EventExtrasValue {
     to: e.trip?.to ?? '',
     roundTrip: e.trip?.roundTrip ?? true,
     vehicleId: e.trip?.businessVehicleId ?? '',
+    miles: e.trip?.manualMiles && e.trip.milesTenths !== null ? (e.trip.milesTenths / 10).toFixed(1) : '',
     photoKeys: e.photoKeys,
   };
 }
